@@ -178,3 +178,14 @@ input{padding:12px 14px;border:2px solid #ded5f2;border-radius:15px;color:var(--
  .adventure-panel .mission-choices{grid-template-columns:repeat(2,minmax(0,1fr))}
  .adventure-panel .choice-big{font-size:15px;min-height:65px}
 }
+
+/* Morning/afternoon and 24-hour quiz */
+.tiles-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+.format-panel{max-width:850px;margin:0 auto;padding:20px}
+.format-visual{display:grid;grid-template-columns:75px minmax(0,1fr) 75px;align-items:center;gap:12px;border:2px solid #ded2ff;background:linear-gradient(135deg,#fff8e9,#f3edff);border-radius:24px;padding:22px 12px;margin:14px 0}
+.format-display{text-align:center;font-size:clamp(25px,3.4vw,37px);font-weight:1000;line-height:1.4;color:#49328d;word-break:keep-all}
+.format-sun,.format-moon{display:flex;flex-direction:column;align-items:center;font-size:44px}
+.format-sun small,.format-moon small{font-size:16px;font-weight:900;color:#68529f}
+.format-choices{grid-template-columns:repeat(2,minmax(0,1fr))}
+.format-choices .choice{min-height:70px;font-size:clamp(18px,2.3vw,25px)}
+@media(max-width:620px){.format-visual{grid-template-columns:42px minmax(0,1fr) 42px;padding:16px 8px;gap:5px}.format-sun,.format-moon{font-size:29px}.format-sun small,.format-moon small{font-size:12px}.format-display{font-size:clamp(21px,5vw,28px)}.format-choices{grid-template-columns:1fr}.tiles-3{grid-template-columns:1fr}}
