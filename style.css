@@ -189,3 +189,19 @@ input{padding:12px 14px;border:2px solid #ded5f2;border-radius:15px;color:var(--
 .format-choices{grid-template-columns:repeat(2,minmax(0,1fr))}
 .format-choices .choice{min-height:70px;font-size:clamp(18px,2.3vw,25px)}
 @media(max-width:620px){.format-visual{grid-template-columns:42px minmax(0,1fr) 42px;padding:16px 8px;gap:5px}.format-sun,.format-moon{font-size:29px}.format-sun small,.format-moon small{font-size:12px}.format-display{font-size:clamp(21px,5vw,28px)}.format-choices{grid-template-columns:1fr}.tiles-3{grid-template-columns:1fr}}
+
+/* Clock playground additions */
+.two-clocks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:12px 0}
+.compare-clock-card{background:#fff;border:2px solid #e5dcff;border-radius:22px;padding:14px;text-align:center}
+.compare-clock-card .clock{width:min(100%,245px)}
+.compare-clock-card .time-big{font-size:25px;display:block;margin:2px 0}
+.compare-clock-card .controls-row{margin-top:8px;gap:8px}
+.compare-clock-card .mini-field input{width:72px;padding:9px}
+.compare-result,.conversion-result{background:linear-gradient(120deg,#fff5e3,#eee7ff);color:#5540a5;border:2px solid #dfd1ff;text-align:center;border-radius:20px;padding:18px;font-size:clamp(24px,3vw,34px);font-weight:950;margin-top:12px}
+.compare-result span{font-size:.8em;color:#7c619c}
+.convert-panel{max-width:810px;margin:auto}
+.conversion-illustration{text-align:center;font-size:55px;padding:4px}
+.convert-panel h3{text-align:center;margin-top:8px}
+.convert-panel hr{border:0;border-top:2px dashed #e7def7;margin:20px 0}
+.convert-panel .mini-field input{max-width:160px}
+@media(max-width:680px){.two-clocks{gap:8px}.compare-clock-card{padding:7px}.compare-clock-card h3{font-size:17px}.compare-clock-card .time-big{font-size:18px}.compare-clock-card .mini-field{font-size:13px;gap:3px}.compare-clock-card .mini-field input{width:52px;padding:5px}.compare-clock-card .controls-row{flex-direction:row;gap:4px}.compare-result{font-size:24px;padding:10px}.conversion-illustration{font-size:40px}}
