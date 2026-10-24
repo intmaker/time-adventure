@@ -205,3 +205,10 @@ input{padding:12px 14px;border:2px solid #ded5f2;border-radius:15px;color:var(--
 .convert-panel hr{border:0;border-top:2px dashed #e7def7;margin:20px 0}
 .convert-panel .mini-field input{max-width:160px}
 @media(max-width:680px){.two-clocks{gap:8px}.compare-clock-card{padding:7px}.compare-clock-card h3{font-size:17px}.compare-clock-card .time-big{font-size:18px}.compare-clock-card .mini-field{font-size:13px;gap:3px}.compare-clock-card .mini-field input{width:52px;padding:5px}.compare-clock-card .controls-row{flex-direction:row;gap:4px}.compare-result{font-size:24px;padding:10px}.conversion-illustration{font-size:40px}}
+
+/* Prominent dual-clock button under left illustration */
+.feature-art .dual-clock-cta{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;width:100%;min-height:104px;padding:19px 14px;background:linear-gradient(135deg,#f675a9,#935df3);color:white;border:3px solid #fff;box-shadow:0 7px 0 #b48be5,0 12px 22px #ac72df30;border-radius:23px;font-size:clamp(23px,2.8vw,32px);font-weight:1000;line-height:1.25;text-align:center}
+.feature-art .dual-clock-cta span{font-size:clamp(15px,1.5vw,19px);font-weight:800}
+.feature-art .dual-clock-cta:hover{filter:brightness(1.06)}
+.feature-art{gap:14px}
+@media(max-width:850px){.feature-art .dual-clock-cta{min-height:94px}}
