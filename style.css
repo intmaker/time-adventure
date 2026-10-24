@@ -127,3 +127,37 @@ input{padding:12px 14px;border:2px solid #ded5f2;border-radius:15px;color:var(--
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
+/* Compact quiz layout: put question, clock, and answers within one desktop viewport */
+.quiz-banner{grid-template-columns:145px minmax(0,1fr);gap:14px;padding:10px 14px;margin-bottom:10px}
+.quiz-banner .small-banner{width:145px;height:112px;object-fit:cover;border-radius:14px;box-shadow:none}
+.quiz-banner .banner-copy{gap:2px}
+.quiz-banner .progress{margin:3px 0 6px;height:8px}
+.quiz-banner .question-prompt{padding:7px 12px;border-radius:14px;gap:1px}
+.quiz-banner .question-instruction{font-size:clamp(17px,1.7vw,21px)}
+.quiz-banner .target-time{font-size:clamp(36px,4vw,54px)}
+.quiz-panel{padding:10px 14px;gap:4px}
+.quiz-panel .clock{width:min(100%,250px)}
+.quiz-panel .clock-box{gap:1px}
+.quiz-panel .time-big{font-size:27px}
+.quiz-panel .controls-row{margin-top:4px;gap:7px}
+.quiz-panel .actions{margin-top:7px}
+.quiz-panel .choice{padding:11px;font-size:18px}
+.quiz-panel .image-choices{margin-top:6px}
+@media(max-width:850px){
+ .quiz-banner{grid-template-columns:105px minmax(0,1fr)}
+ .quiz-banner .small-banner{width:105px;height:95px}
+}
+@media(max-width:620px){
+ .quiz-banner{grid-template-columns:75px minmax(0,1fr);gap:8px;padding:8px}
+ .quiz-banner .small-banner{width:75px;height:82px}
+ .quiz-banner .question-prompt{padding:6px}
+ .quiz-banner .question-instruction{font-size:16px}
+ .quiz-banner .target-time{font-size:clamp(30px,8vw,43px)}
+ .quiz-panel .clock{width:min(100%,220px)}
+ .quiz-panel .controls-row{flex-direction:row;justify-content:center}
+ .quiz-panel .mini-field{width:auto}
+ .quiz-panel .mini-field input{width:67px;padding:8px}
+ .quiz-panel .btn{padding:9px 11px}
+ .quiz-panel .image-choices{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .quiz-panel .choice{font-size:15px;padding:9px 4px}
+}
