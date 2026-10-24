@@ -27,6 +27,7 @@ let practiceStep = 5;
 let practiceTarget = null;
 let quizSession = null;
 let adventureSession = null;
+let adventureMode = 'duration';
 let formatSession = null;
 let dragInfo = null;
 let autoNextTimer = null;
@@ -276,26 +277,14 @@ function homePage(){
 }
 
 function menuPage(){
-  root.innerHTML = `
-    ${heading(`${esc(state.name || '친구')} 탐험가, 오늘은 무엇을 할까?`, '시간과 시각만 골라서 재미있게 배워 보아요!')}
-    <section class="banner-card">
-      <img src="${scenes.hero}" alt="시간 탐험대 대표 그림" class="banner-image">
-      <div class="banner-copy">
-        <h3>시계 요정 째깍이와 함께 떠나는 시간 공부</h3>
-        <p>메뉴를 눌러서 시계 조작, 퀴즈, 시간 모험, 오전·오후와 24시간을 배워 보세요.</p>
-      </div>
-    </section>
-    <section class="tiles tiles-3">
-      ${tileCard('clock', scenes.clock, '시계를 움직여 봐요', '바늘을 직접 움직이며 시간을 맞혀요.')}
-      ${tileCard('quiz', scenes.quiz, '시계 퀴즈', '시계를 읽고 정답을 골라요.')}
-      ${tileCard('adventure', scenes.bus, '시간 모험 퀴즈', '그림과 함께 더 재미있는 모험 퀴즈!')}
-      ${tileCard('format', scenes.rocket, '오전·오후와 24시간', '12시간제와 24시간제를 바꿔 봐요!')}
-    </section>
-    <div class="actions center stack-mobile">
-      ${menuButton('학습 기록 보기 📊','result','secondary')}
-      ${menuButton('이름 바꾸기','home','secondary')}
-    </div>
-  `;
+ root.innerHTML=heading(`${esc(state.name||'친구')} 탐험가, 시간 공부를 시작해요!`,'초등학교 2학년 시간과 시각 · 다섯 가지 단계별 학습')+
+ '<section class="tiles tiles-3">'+
+ tileCard('quiz',scenes.clock,'① 시계 읽기·맞추기','시계를 읽고 직접 바늘을 움직여요.')+
+ tileCard('before',scenes.quiz,'② 몇 시 몇 분 전','정각까지 남은 시간과 이전 시각을 알아봐요.')+
+ tileCard('duration',scenes.bus,'③ 걸린 시간','시작 시각과 끝 시각 사이를 계산해요.')+
+ tileCard('unit',scenes.rocket,'④ 시간 단위 변환','1시간=60분! 시간과 분을 바꿔요.')+
+ tileCard('format',scenes.hero,'⑤ 오전·오후와 24시간제','오전·오후와 12시간제·24시간제를 익혀요.')+
+ '</section><div class="actions center">'+menuButton('자유롭게 시계 움직이기','clock','secondary')+menuButton('학습 기록','result','secondary')+'</div>';
 }
 
 function clockPage(){
@@ -477,13 +466,13 @@ function buildAdventureSession(){
   return {
     index: 0,
     correct: 0,
-    missions: adventureStories.map((story, i) => createAdventureMission(story, i))
+    missions: adventureStories.map((story, i) => createAdventureMission(story, i, adventureMode))
   };
 }
 
 
-function createAdventureMission(story,index){
- const category=index%4;
+function createAdventureMission(story,index,mode='duration'){
+ const category=mode==='before'?2:mode==='unit'?3:1;
  const minuteChoices=[10,15,20,25,30,35,40,45,50,55];
  const start=rand(7,17)*60+pick([0,10,15,20,25,30,40,45,50]);
  const amount=pick(minuteChoices);
@@ -530,7 +519,7 @@ function adventurePage(){
   const mission = adventureSession.missions[adventureSession.index];
   const progress = (adventureSession.index / adventureSession.missions.length) * 100;
   root.innerHTML = `
-    ${heading('🌟 시간 모험 퀴즈', '그림 속 이야기를 읽고 시간을 계산해 보세요!')}
+    ${heading(adventureMode==='before'?'⏪ 몇 시 몇 분 전':adventureMode==='unit'?'⏳ 시간 단위 변환':'⏱️ 걸린 시간','그림을 보고 문제를 읽은 뒤 알맞은 답을 골라 보세요!')}
     <section class="panel adventure-panel">
       <div class="row spread"><span class="pill">${mission.icon} ${mission.title}</span><strong>${adventureSession.index + 1} / ${adventureSession.missions.length} 미션</strong></div>
       <div class="progress"><span style="width:${progress}%"></span></div>
@@ -566,7 +555,7 @@ function adventureAnswer(choiceIndex){
   if(correct){
     mission.solved = true;
     adventureSession.correct += 1;
-    record('시간 모험 퀴즈', true, mission.hinted, mission.hinted ? 1 : 2);
+    record(adventureMode==='before'?'몇 시 몇 분 전':adventureMode==='unit'?'시간 단위 변환':'걸린 시간', true, mission.hinted, mission.hinted ? 1 : 2);
     document.getElementById('advFeedback').innerHTML = quizCorrectMessage(['end','before'].includes(mission.type) ? `정답은 ${sayTime(mission.answer)}이에요!` : typeof mission.answer==='string'?`정답은 ${mission.answer}이에요!`:`정답은 ${mission.answer}분이에요!`);
     autoNextTimer = setTimeout(() => {
       clearAuto();
@@ -575,7 +564,7 @@ function adventureAnswer(choiceIndex){
       else adventurePage();
     }, 1600);
   }else{
-    record('시간 모험 퀴즈', false, mission.hinted, 0);
+    record(adventureMode==='before'?'몇 시 몇 분 전':adventureMode==='unit'?'시간 단위 변환':'걸린 시간', false, mission.hinted, 0);
     document.getElementById('advFeedback').innerHTML = `<div class="feedback warn">조금만 더 생각해 볼까요? 다시 눌러 볼 수 있어요.</div>`;
   }
 }
@@ -675,7 +664,7 @@ function resultPage(){
   const totalCorrect = attempts.filter(a => a.correct).length;
   const noHint = attempts.filter(a => a.correct && !a.hinted).length;
   const total = attempts.length;
-  const groups = ['시계 놀이터','시계 퀴즈','시간 모험 퀴즈','오전·오후와 24시간'].map(name => {
+  const groups = ['시계 퀴즈','몇 시 몇 분 전','걸린 시간','시간 단위 변환','오전·오후와 24시간'].map(name => {
     const arr = attempts.filter(a => a.mode === name);
     return { name, count: arr.length, rate: arr.length ? Math.round(arr.filter(x => x.correct).length / arr.length * 100) : 0 };
   });
@@ -741,7 +730,10 @@ function handleAction(action){
     case 'menu': setView('menu'); break;
     case 'clock': setView('clock'); break;
     case 'quiz': quizSession = null; setView('quiz'); break;
-    case 'adventure': adventureSession = null; setView('adventure'); break;
+    case 'adventure': adventureMode='duration';adventureSession = null; setView('adventure'); break;
+    case 'duration': adventureMode='duration';adventureSession=null;setView('adventure');break;
+    case 'before': adventureMode='before';adventureSession=null;setView('adventure');break;
+    case 'unit': adventureMode='unit';adventureSession=null;setView('adventure');break;
     case 'format': formatSession = null; setView('format'); break;
     case 'result': setView('result'); break;
     case 'step5': practiceStep = 5; practiceMinutes = Math.round(practiceMinutes / 5) * 5; clockPage(); break;
