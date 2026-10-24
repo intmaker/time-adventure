@@ -23,6 +23,11 @@ function loadState(){
 let state = loadState();
 let view = 'home';
 let practiceMinutes = 125;
+let compareStart = 9*60+20;
+let compareEnd = 10*60+35;
+let converterHours = 1;
+let converterMinutes = 25;
+let converterTotal = 85;
 let practiceStep = 5;
 let practiceTarget = null;
 let quizSession = null;
@@ -173,6 +178,14 @@ function updateClockDom(svg, minutes, syncMode){
     if(h) h.value = clockHour(value);
     if(m) m.value = clockMinute(value);
   }
+  if(syncMode === 'compareStart' || syncMode === 'compareEnd'){
+    const id=syncMode==='compareStart'?'Start':'End';
+    const hourInput=document.getElementById('compare'+id+'Hour');
+    const minuteInput=document.getElementById('compare'+id+'Minute');
+    if(hourInput) hourInput.value=clockHour(value);
+    if(minuteInput) minuteInput.value=clockMinute(value);
+    refreshCompare();
+  }
   if(syncMode === 'quiz'){
     const digital = document.getElementById('quizDigital');
     if(digital) digital.textContent = digitalText(value);
@@ -192,6 +205,8 @@ function extractAngle(event, svg){
 
 function getContextMinutes(context){
   if(context === 'practice') return practiceMinutes;
+  if(context === 'compareStart') return compareStart;
+  if(context === 'compareEnd') return compareEnd;
   if(context === 'quiz' && quizSession?.current?.kind === 'set') return quizSession.current.userMinutes;
   return 0;
 }
@@ -199,6 +214,8 @@ function getContextMinutes(context){
 function setContextMinutes(context, minutes){
   const value = clockMod(minutes);
   if(context === 'practice') practiceMinutes = value;
+  if(context === 'compareStart') compareStart = value;
+  if(context === 'compareEnd') compareEnd = value;
   if(context === 'quiz' && quizSession?.current?.kind === 'set') quizSession.current.userMinutes = value;
 }
 
@@ -277,14 +294,16 @@ function homePage(){
 }
 
 function menuPage(){
- root.innerHTML=heading(`${esc(state.name||'친구')} 탐험가, 시간 공부를 시작해요!`,'초등학교 2학년 시간과 시각 · 다섯 가지 단계별 학습')+
+ root.innerHTML=heading(`${esc(state.name||'친구')} 탐험가, 시간 공부를 시작해요!`,'초등학교 2학년 시간과 시각 · 일곱 가지 학습과 놀이')+
  '<section class="tiles tiles-3">'+
- tileCard('quiz',scenes.clock,'① 시계 읽기·맞추기','시계를 읽고 직접 바늘을 움직여요.')+
- tileCard('before',scenes.quiz,'② 몇 시 몇 분 전','정각까지 남은 시간과 이전 시각을 알아봐요.')+
- tileCard('duration',scenes.bus,'③ 걸린 시간','시작 시각과 끝 시각 사이를 계산해요.')+
- tileCard('unit',scenes.rocket,'④ 시간 단위 변환','1시간=60분! 시간과 분을 바꿔요.')+
- tileCard('format',scenes.hero,'⑤ 오전·오후와 24시간제','오전·오후와 12시간제·24시간제를 익혀요.')+
- '</section><div class="actions center">'+menuButton('자유롭게 시계 움직이기','clock','secondary')+menuButton('학습 기록','result','secondary')+'</div>';
+ tileCard('clock',scenes.clock,'① 시계 놀이터·두 시계 비교','시계 바늘 놀이와 두 시각 사이의 시간 계산')+
+ tileCard('convertplay',scenes.rocket,'② 시간·분 변환 놀이터','시간과 분을 넣고 전체 분으로 바꿔요!')+
+ tileCard('quiz',scenes.clock,'③ 시계 읽기·맞추기','시계를 읽고 직접 바늘을 움직여요.')+
+ tileCard('before',scenes.quiz,'④ 몇 시 몇 분 전','정각까지 남은 시간과 이전 시각을 알아봐요.')+
+ tileCard('duration',scenes.bus,'⑤ 걸린 시간','시작 시각과 끝 시각 사이를 계산해요.')+
+ tileCard('unit',scenes.rocket,'⑥ 시간 단위 변환','1시간=60분! 시간과 분을 바꿔요.')+
+ tileCard('format',scenes.hero,'⑦ 오전·오후와 24시간제','오전·오후와 12시간제·24시간제를 익혀요.')+
+ '</section><div class="actions center">'+menuButton('학습 기록','result','secondary')+'</div>';
 }
 
 function clockPage(){
@@ -319,6 +338,7 @@ function clockPage(){
           ${menuButton('5분씩 연습','step5','secondary small')}
           ${menuButton('1분까지 연습','step1','secondary small')}
           ${menuButton('새로운 목표 받기','newClockTask','pink small')}
+          ${menuButton('두 시계 비교 놀이','twoClocks','pink small')}
           ${menuButton('학습 메뉴','menu','secondary small')}
         </div>
         <div id="clockFeedback" aria-live="polite"></div>
@@ -326,6 +346,55 @@ function clockPage(){
     </div>
   `;
   hookClocks();
+}
+
+
+function compareDuration(){
+ const start=clockMod(compareStart),end=clockMod(compareEnd);
+ return (end-start+720)%720;
+}
+function refreshCompare(){
+ const total=compareDuration(),h=Math.floor(total/60),m=total%60;
+ const result=document.getElementById('compareResult');
+ if(result)result.innerHTML='<strong>'+h+'시간 '+m+'분</strong><span> = '+total+'분</span>';
+ const startLabel=document.getElementById('compareStartLabel');
+ const endLabel=document.getElementById('compareEndLabel');
+ if(startLabel)startLabel.textContent=clockText(compareStart);
+ if(endLabel)endLabel.textContent=clockText(compareEnd);
+}
+function twoClocksPage(){
+ root.innerHTML=heading('🕰️ 시계 놀이터 · 두 시계 비교','두 시계를 움직여 시작 시각부터 끝 시각까지 얼마나 지났는지 알아봐요.')+
+ '<section class="panel"><p class="muted">끝 시각이 시작 시각보다 앞서면 12시간제 시계의 다음 바퀴로 계산합니다. 하루 이상 걸린 시간은 이 놀이에서 다루지 않아요.</p>'+
+ '<div class="two-clocks">'+
+ compareClockBlock('Start','시작 시각',compareStart,'compareStart')+
+ compareClockBlock('End','끝 시각',compareEnd,'compareEnd')+
+ '</div><div id="compareResult" class="compare-result" aria-live="polite"></div>'+
+ '<div class="actions center">'+menuButton('예시: 9시 20분 → 10시 35분','sampleCompare','secondary')+
+ menuButton('5분 추가','comparePlus5','secondary')+menuButton('학습 메뉴','menu','secondary')+'</div></section>';
+ hookClocks();refreshCompare();
+}
+function compareClockBlock(id,title,time,context){
+ return '<div class="compare-clock-card"><h3>'+title+'</h3><div class="clock-box">'+renderClockSVG(time,{interactive:true,context})+'</div>'+
+ '<strong id="compare'+id+'Label" class="time-big">'+clockText(time)+'</strong>'+
+ '<div class="controls-row"><label class="mini-field">시 <input type="number" min="1" max="12" id="compare'+id+'Hour" value="'+clockHour(time)+'"></label>'+
+ '<label class="mini-field">분 <input type="number" min="0" max="59" id="compare'+id+'Minute" value="'+clockMinute(time)+'"></label></div></div>';
+}
+function converterPage(){
+ root.innerHTML=heading('⏳ 시간·분 변환 놀이터','시간과 분을 직접 입력하고 전체 몇 분인지 살펴보세요.')+
+ '<section class="panel convert-panel"><div class="conversion-illustration">⏰ ✨ 🧮</div><h3>시간 + 분 → 전체 분</h3>'+
+ '<div class="controls-row"><label class="mini-field">시간 <input id="converterHours" type="number" min="0" max="48" value="'+converterHours+'"></label>'+
+ '<label class="mini-field">분 <input id="converterMinutes" type="number" min="0" max="59" value="'+converterMinutes+'"></label></div>'+
+ '<div class="conversion-result" id="toMinutesResult"></div>'+
+ '<hr><h3>전체 분 → 몇 시간 몇 분</h3>'+
+ '<div class="controls-row"><label class="mini-field">전체 분 <input id="converterTotal" type="number" min="0" max="2880" value="'+converterTotal+'"></label></div>'+
+ '<div class="conversion-result" id="toHoursResult"></div>'+
+ '<div class="actions center">'+menuButton('예시: 85분','convert85','secondary')+menuButton('예시: 2시간','convert120','secondary')+menuButton('학습 메뉴','menu','secondary')+'</div></section>';
+ refreshConverter();
+}
+function refreshConverter(){
+ const a=document.getElementById('toMinutesResult'),b=document.getElementById('toHoursResult');
+ if(a)a.textContent=converterHours+'시간 '+converterMinutes+'분 = '+(converterHours*60+converterMinutes)+'분';
+ if(b)b.textContent=converterTotal+'분 = '+Math.floor(converterTotal/60)+'시간 '+(converterTotal%60)+'분';
 }
 
 function questionPrompt(content){
@@ -709,6 +778,8 @@ function render(){
     case 'home': homePage(); break;
     case 'menu': menuPage(); break;
     case 'clock': clockPage(); break;
+    case 'twoClocks': twoClocksPage(); break;
+    case 'convertplay': converterPage(); break;
     case 'quiz': quizPage(); break;
     case 'adventure': adventurePage(); break;
     case 'format': formatPage(); break;
@@ -729,6 +800,12 @@ function handleAction(action){
     }
     case 'menu': setView('menu'); break;
     case 'clock': setView('clock'); break;
+    case 'convertplay': setView('convertplay'); break;
+    case 'twoClocks': setView('twoClocks'); break;
+    case 'sampleCompare': compareStart=9*60+20;compareEnd=10*60+35;twoClocksPage();break;
+    case 'comparePlus5':compareEnd=clockMod(compareEnd+5);twoClocksPage();break;
+    case 'convert85': converterHours=1;converterMinutes=25;converterTotal=85;converterPage();break;
+    case 'convert120': converterHours=2;converterMinutes=0;converterTotal=120;converterPage();break;
     case 'quiz': quizSession = null; setView('quiz'); break;
     case 'adventure': adventureMode='duration';adventureSession = null; setView('adventure'); break;
     case 'duration': adventureMode='duration';adventureSession=null;setView('adventure');break;
@@ -790,6 +867,25 @@ root.addEventListener('click', (event) => {
 });
 
 root.addEventListener('input', (event) => {
+  if(['compareStartHour','compareStartMinute','compareEndHour','compareEndMinute'].includes(event.target.id)){
+    const isStart=event.target.id.includes('Start');const id=isStart?'Start':'End';
+    const hv=document.getElementById('compare'+id+'Hour').value;
+    const mv=document.getElementById('compare'+id+'Minute').value;
+    const h=Number(hv),m=Number(mv);
+    if(!Number.isInteger(h)||h<1||h>12||!Number.isInteger(m)||m<0||m>59)return;
+    const value=clockMod((h%12)*60+m);
+    if(isStart)compareStart=value;else compareEnd=value;
+    const svg=document.querySelector('[data-clock-context="compare'+id+'"]');
+    if(svg)updateClockDom(svg,value,'compare'+id);
+    return;
+  }
+  if(['converterHours','converterMinutes','converterTotal'].includes(event.target.id)){
+    const h=document.getElementById('converterHours'),m=document.getElementById('converterMinutes'),t=document.getElementById('converterTotal');
+    const values=[Number(h.value),Number(m.value),Number(t.value)];
+    if(values.some(v=>!Number.isInteger(v)||v<0))return;
+    if(values[0]>48||values[1]>59||values[2]>2880)return;
+    [converterHours,converterMinutes,converterTotal]=values;refreshConverter();return;
+  }
   if(event.target.id === 'practiceHour' || event.target.id === 'practiceMinute'){
     const h = clamp(Number(document.getElementById('practiceHour').value) || 12, 1, 12);
     const m = clamp(Number(document.getElementById('practiceMinute').value) || 0, 0, 59);
