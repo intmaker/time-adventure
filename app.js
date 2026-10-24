@@ -1,53 +1,735 @@
+'use strict';
 
-const KEY='time-explorer-v1';
-const initial={name:'',stars:0,history:[],days:[{name:'학교 가기',time:'08:30'},{name:'점심 먹기',time:'12:10'},{name:'피아노',time:'15:00'},{name:'잠자기',time:'21:00'}]};
-let data;try{data={...initial,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{data={...initial}}
-let quizAdvanceTimer=null,quizLocked=false;let page='home',hour=3,minute=30,quiz=[],qi=0,attempts=0,shownHint=false,adventure=0;
-const $=id=>document.getElementById(id),save=()=>{localStorage.setItem(KEY,JSON.stringify(data));$('stars').textContent='⭐ '+data.stars},pad=n=>String(n).padStart(2,'0');
-function clockSVG(h,m,interactive=true){let marks='';for(let n=1;n<=12;n++){let a=n*Math.PI/6;marks+='<text x="'+(150+109*Math.sin(a))+'" y="'+(157-109*Math.cos(a))+'" font-size="22" text-anchor="middle" fill="#5e528f" font-weight="800">'+n+'</text>'}return '<svg class="clock" viewBox="0 0 300 300" role="img" aria-label="'+h+'시 '+m+'분 시계" '+(interactive?'onpointerdown="clockPoint(event)" onpointermove="clockMove(event)" onpointerup="clockEnd(event)"':'')+'><circle cx="150" cy="150" r="145" fill="#d9ceff"/><circle cx="150" cy="150" r="134" fill="#fffdf6"/>'+marks+'<line x1="150" y1="150" x2="150" y2="88" stroke="#6754c5" stroke-width="11" stroke-linecap="round" transform="rotate('+((h%12)*30+m/2)+' 150 150)"/><line x1="150" y1="150" x2="150" y2="54" stroke="#f07887" stroke-width="7" stroke-linecap="round" transform="rotate('+(m*6)+' 150 150)"/><circle cx="150" cy="150" r="10" fill="#594c94"/></svg>'}
-const renderPage=(title,body)=>{page=title;$('app').innerHTML='<div class="row"><h2>'+title+'</h2><button class="btn alt" onclick="go(\'menu\')">⌂ 학습 메뉴</button></div>'+body;save()};
-function go(p){clearTimeout(quizAdvanceTimer);page=p;shownHint=false;attempts=0;if(p==='home'){ $('app').innerHTML='<section class="card hero"><div><h1>⏰ 째깍째깍!<br>시간 탐험대</h1><p>째깍이와 함께 시계를 움직이고 재미있게 시간 여행을 해요!</p><label>탐험가 이름 <input id="name" class="field" maxlength="18" placeholder="이름을 입력해요" value="'+escapeHtml(data.name)+'"></label><p><button class="btn" onclick="start()">탐험 시작하기 ✨</button></p></div><img class="mascot" src="assets/jjaekkagi.svg" alt="시계 요정 째깍이"></section>';}
-else if(p==='menu'){renderPage('무엇을 배워 볼까요?', '<div class="grid"><button class="menu" onclick="go(\'clock\')">🕰️ 시계 놀이터<br><small>시침과 분침 움직이기</small></button><button class="menu" onclick="beginQuiz()">🧩 시계 퀴즈<br><small>열 문제에 도전하기</small></button><button class="menu" onclick="go(\'daily\')">🌈 나의 하루<br><small>내 일정으로 시간 익히기</small></button><button class="menu" onclick="beginAdventure()">🚀 시간 모험<br><small>걸린 시간 계산하기</small></button><button class="menu" onclick="go(\'record\')">🏆 학습 기록<br><small>내가 모은 별과 배지</small></button></div>')}
-else if(p==='clock'){renderClock()}
-else if(p==='daily'){renderDays()}
-else if(p==='record'){renderRecord()}}
-function start(){data.name=($('name').value||'꼬마 탐험가').trim();save();go('menu')}
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function renderClock(){renderPage('🕰️ 시계 놀이터','<section class="card"><p>시침(보라색)과 분침(분홍색)을 움직여 보세요! 바늘 끝을 드래그할 수 있어요.</p><div class="clockbox">'+clockSVG(hour,minute)+'<div class="digital">'+pad(hour)+':'+pad(minute)+'</div><div class="controls"><label>시 <input id="h" type="number" min="1" max="12" value="'+hour+'" onchange="setClock()"></label><label>분 <input id="m" type="number" min="0" max="59" value="'+minute+'" onchange="setClock()"></label></div><div><button class="btn alt" onclick="shift(-5)">-5분</button><button class="btn alt" onclick="shift(5)">+5분</button><button class="btn" onclick="randomClock()">무작위 시각</button></div></div></section>')}
-function setClock(){hour=Math.max(1,Math.min(12,Number($('h').value)||12));minute=Math.max(0,Math.min(59,Number($('m').value)||0));renderClock()}
-function shift(n){let total=((hour%12)*60+minute+n+1440)%720;hour=Math.floor(total/60)||12;minute=total%60;renderClock()}
-function randomClock(){hour=1+Math.floor(Math.random()*12);minute=5*Math.floor(Math.random()*12);renderClock()}
-let dragging=null, dragSvg=null;
-function getAngle(e){const svg=e.currentTarget,rect=svg.getBoundingClientRect(),x=(e.clientX-rect.left)/rect.width*300-150,y=(e.clientY-rect.top)/rect.height*300-150;return (Math.atan2(x,-y)*180/Math.PI+360)%360}
-function clockPoint(e){const svg=e.currentTarget,rect=svg.getBoundingClientRect();const dist=Math.hypot((e.clientX-rect.left)/rect.width*300-150,(e.clientY-rect.top)/rect.height*300-150);dragging=dist<78?'hour':'minute';dragSvg=svg;svg.setPointerCapture(e.pointerId);clockMove(e)}
-function clockMove(e){if(!dragging||!dragSvg)return;const a=getAngle({currentTarget:dragSvg,clientX:e.clientX,clientY:e.clientY});if(dragging==='minute'){const old=minute;minute=Math.round(a/6)%60;if(old>45&&minute<15)hour=hour%12+1;else if(old<15&&minute>45)hour=(hour+10)%12+1}else{hour=Math.round(a/30)||12}const lines=dragSvg.querySelectorAll('line');if(lines[0])lines[0].setAttribute('transform','rotate('+((hour%12)*30+minute/2)+' 150 150)');if(lines[1])lines[1].setAttribute('transform','rotate('+(minute*6)+' 150 150)');const digital=document.querySelector('.digital');if(digital)digital.textContent=pad(hour)+':'+pad(minute);if($('h'))$('h').value=hour;if($('m'))$('m').value=minute;if($('qh'))$('qh').value=hour;if($('qm'))$('qm').value=minute}
-function clockEnd(){dragging=null;dragSvg=null}
-function pick(arr){return arr[Math.floor(Math.random()*arr.length)]}
-function makeQuestion(level=0){let h=1+Math.floor(Math.random()*12),m=level<1?0:level===1?30:level===2?Math.floor(Math.random()*12)*5:Math.floor(Math.random()*60);let askSet=Math.random()<.35;if(askSet)return{kind:'set',h,m,answer:h*60+m,text:'바늘을 움직여 '+h+'시 '+m+'분을 만들어 보세요.',hint:'긴 바늘은 분을, 짧은 바늘은 시를 나타내요.'};let ans=h*60+m,opts=[ans];for(let delta of [5,10,30,60,15,45]){let n=((ans+delta-60)+720)%720;if(n===0)n=720;if(!opts.includes(n))opts.push(n);if(opts.length===4)break}opts.sort(()=>Math.random()-.5);return{kind:'read',h,m,answer:ans,options:opts,text:'시계를 보고 알맞은 시각을 골라 보세요.',hint:'긴 바늘이 숫자 하나를 지나면 5분이 지나가요.'}}
-function labelTime(n){let h=Math.floor(n/60),m=n%60;return (h||12)+'시 '+(m?m+'분':'정각')}
-function beginQuiz(){clearTimeout(quizAdvanceTimer);quizLocked=false;quiz=Array.from({length:10},(_,i)=>makeQuestion(Math.floor(i/3)));qi=0;renderQuiz()}
-function renderQuiz(){quizLocked=false;let q=quiz[qi];let content='<section class="card"><div class="row"><b>'+(qi+1)+' / 10 문제</b><span>⭐ '+data.stars+'</span></div><div class="progress"><div style="width:'+((qi)/10*100)+'%"></div></div><div class="question-prompt">'+(q.kind==='set'?'<span class="question-instruction">바늘을 움직여</span><strong class="target-time">'+q.h+'시 '+q.m+'분</strong><span class="question-instruction">을 만들어 보세요!</span>':'<span class="question-instruction">시계를 보고</span><strong class="target-read">몇 시 몇 분인지</strong><span class="question-instruction">골라 보세요!</span>')+'</div><div class="clockbox">'+clockSVG(q.kind==='set'?hour:q.h,q.kind==='set'?minute:q.m,q.kind==='set')+'</div>';
-if(q.kind==='read')content+='<div class="options">'+q.options.map(v=>'<button class="option" onclick="checkQuiz('+v+')">'+labelTime(v)+'</button>').join('')+'</div>';
-else content+='<div class="controls"><label>시 <input id="qh" class="field" type="number" value="'+hour+'" min="1" max="12" oninput="syncQuizInputs()"></label><label>분 <input id="qm" class="field" type="number" value="'+minute+'" min="0" max="59" oninput="syncQuizInputs()"></label><button class="btn" onclick="submitClockQuiz()">정답 확인</button></div>';
-content+='<div id="result"></div><button class="btn alt" onclick="hintQuiz()">💡 힌트</button></section>';renderPage('🧩 시계 퀴즈',content)}
-function syncQuizInputs(){const h=Number($('qh')?.value),m=Number($('qm')?.value);if(!Number.isInteger(h)||h<1||h>12||!Number.isInteger(m)||m<0||m>59)return;hour=h;minute=m;const svg=document.querySelector('.clock');if(svg){const hands=svg.querySelectorAll('line');hands[0]?.setAttribute('transform','rotate('+((hour%12)*30+minute/2)+' 150 150)');hands[1]?.setAttribute('transform','rotate('+(minute*6)+' 150 150)')}}
-function submitClockQuiz(){const h=Number($('qh').value),m=Number($('qm').value);if(h<1||h>12||m<0||m>59||!Number.isInteger(h)||!Number.isInteger(m)){showResult('올바른 시각을 입력해 주세요.',false);return}hour=h;minute=m;checkQuiz(h*60+m)}
-function hintQuiz(){shownHint=true;showResult(quiz[qi].hint,false)}
-function showResult(t,good){$('result').innerHTML='<div class="feedback '+(good?'success':'danger')+'">'+t+'</div>'}
-function checkQuiz(v){if(quizLocked)return;const q=quiz[qi],correct=v===q.answer;attempts++;if(correct){quizLocked=true;data.stars+=attempts===1&&!shownHint?3:1;data.history.push({type:'시계 퀴즈',ok:true,first:attempts===1&&!shownHint,date:new Date().toISOString()});save();showResult('🎉 정답이에요! '+labelTime(q.answer)+' ⭐ 잠시 후 다음 문제로 이동해요.',true);document.querySelectorAll('.option').forEach(x=>x.disabled=true);const submit=document.querySelector('[onclick="submitClockQuiz()"]');if(submit)submit.disabled=true;quizAdvanceTimer=setTimeout(()=>{quizAdvanceTimer=null;nextQuiz()},1600)}else{data.history.push({type:'시계 퀴즈',ok:false,date:new Date().toISOString()});save();showResult(attempts>=2?'다시 도전! '+q.hint:'한 번 더 생각해 보세요!',false)}}
-function nextQuiz(){clearTimeout(quizAdvanceTimer);quizLocked=false;qi++;attempts=0;shownHint=false;if(qi>=quiz.length){renderPage('퀴즈 완료!','<section class="card"><h1>🎊 대단해요!</h1><p>10문제를 모두 풀었어요.</p><button class="btn" onclick="go(\'menu\')">학습 메뉴</button><button class="btn alt" onclick="beginQuiz()">다시 도전</button></section>')}else renderQuiz()}
-function renderDays(){const list=data.days.slice().sort((a,b)=>a.time.localeCompare(b.time)).map((d,i)=>'<div class="day"><span>🕒 '+escapeHtml(d.time)+'　'+escapeHtml(d.name)+'</span><span><button class="btn alt" onclick="editDay('+data.days.indexOf(d)+')">수정</button><button class="btn warn" onclick="deleteDay('+data.days.indexOf(d)+')">삭제</button></span></div>').join('');renderPage('🌈 나의 하루','<section class="card"><p>나의 하루를 시간표로 만들어 보세요.</p><div class="days">'+list+'</div><h3>새로운 일과 추가</h3><div class="controls"><input id="dayName" class="field" placeholder="예: 수영"><input id="dayTime" type="time" value="16:00" class="field"><button class="btn" onclick="addDay()">추가하기</button></div><p><button class="btn alt" onclick="dayProblem()">내 시간표로 퀴즈 풀기</button></p><div id="dayResult"></div></section>')}
-function addDay(){let n=$('dayName').value.trim(),t=$('dayTime').value;if(!n||!t){alert('일과와 시각을 입력해 주세요.');return}data.days.push({name:n,time:t});save();renderDays()}
-function editDay(i){let d=data.days[i],n=prompt('일과 이름',d.name),t=prompt('시각 (HH:MM)',d.time);if(n===null||t===null)return;if(!n.trim()||!/^([01]\d|2[0-3]):[0-5]\d$/.test(t)){alert('올바르게 입력해 주세요.');return}data.days[i]={name:n.trim(),time:t};save();renderDays()}
-function deleteDay(i){data.days.splice(i,1);save();renderDays()}
-function dayProblem(){if(!data.days.length){$('dayResult').textContent='일과를 먼저 추가해 주세요.';return}let d=pick(data.days),duration=pick([10,20,30]);let [h,m]=d.time.split(':').map(Number),end=(h*60+m+duration)%(24*60);let formatted=pad(Math.floor(end/60))+':'+pad(end%60);$('dayResult').innerHTML='<div class="feedback">'+escapeHtml(d.name)+' 시각 '+d.time+'에서 '+duration+'분 뒤는 언제일까요?<div class="controls"><input id="dayAns" type="time" class="field"><button class="btn" onclick="answerDay(\''+formatted+'\')">확인</button></div></div>'}
-function answerDay(correct){let good=$('dayAns').value===correct;data.history.push({type:'나의 하루',ok:good,date:new Date().toISOString()});if(good)data.stars+=2;save();$('dayResult').innerHTML='<div class="feedback '+(good?'success':'danger')+'">'+(good?'정답이에요! ⭐2':'다시 생각해 보세요. 정답은 '+correct+'예요.')+'</div><button class="btn alt" onclick="dayProblem()">다음 문제</button>'}
-const missions=[{start:120,minutes:20},{start:195,minutes:35},{start:565,minutes:45},{start:680,minutes:80},{start:875,minutes:95}];
-function beginAdventure(){adventure=0;renderAdventure()}
-function renderAdventure(){if(adventure>=missions.length){renderPage('🚀 모험 완료','<section class="card"><h1>🏆 시간 탐험 박사!</h1><p>모든 시간 모험을 마쳤어요.</p><button class="btn" onclick="go(\'record\')">내 기록 보기</button></section>');return}let q=missions[adventure],ans=q.start+q.minutes;let candidates=[ans,ans+10,ans-10,ans+30].sort(()=>Math.random()-.5);renderPage('🚀 시간 모험','<section class="card"><div class="progress"><div style="width:'+adventure*20+'%"></div></div><h3>미션 '+(adventure+1)+' / 5</h3><p>⏱️ '+labelTime(q.start)+'부터 '+q.minutes+'분이 지났어요. 끝나는 시각은?</p><div class="options">'+candidates.map(v=>'<button class="option" onclick="adventureAnswer('+v+')">'+labelTime(v)+'</button>').join('')+'</div><div id="result"></div><button class="btn alt" onclick="adventureHint()">💡 힌트 보기</button></section>')}
-function adventureHint(){let q=missions[adventure];showResult('시작 시각의 분에 '+q.minutes+'분을 더해 보세요. 60분이 되면 한 시간이 지나가요.',false)}
-function adventureAnswer(v){let q=missions[adventure],good=v===q.start+q.minutes;data.history.push({type:'시간 모험',ok:good,date:new Date().toISOString()});if(good){data.stars+=3;save();showResult('정답! ⭐3 다음 미션으로 이동해요.',true);document.querySelectorAll('.option').forEach(x=>x.disabled=true);$('result').innerHTML+='<button class="btn good" onclick="adventure++;renderAdventure()">다음 미션 ➜</button>'}else{save();showResult('한 번 더 계산해 보세요.',false)}}
-function renderRecord(){let entries=data.history,correct=entries.filter(x=>x.ok),rate=entries.length?Math.round(correct.length/entries.length*100):0;let types=['시계 퀴즈','나의 하루','시간 모험'];renderPage('🏆 나의 학습 기록','<section class="card"><h1>⭐ '+data.stars+'개의 별</h1><p>'+escapeHtml(data.name||'탐험가')+'의 학습 기록</p><p>문제 풀이 '+entries.length+'회 · 정답 '+correct.length+'회 · 정답률 '+rate+'%</p><div class="progress"><div style="width:'+rate+'%"></div></div><p>'+types.map(t=>{let e=entries.filter(x=>x.type===t),c=e.filter(x=>x.ok).length;return '<span class="badge">'+t+' '+(e.length?Math.round(c/e.length*100):0)+'%</span>'}).join('')+'</p><p>'+ (data.stars>=50?'🥇 시간 박사 배지 획득!':'별을 50개 모으면 시간 박사 배지를 받아요!')+'</p><button class="btn alt" onclick="exportRecord()">기록 내려받기</button><button class="btn warn" onclick="resetRecord()">기록 초기화</button></section>')}
-function exportRecord(){let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='시간탐험대-학습기록.json';a.click();URL.revokeObjectURL(u)}
-function resetRecord(){if(confirm('모든 학습 기록과 시간표를 초기화할까요?')){data={...initial,days:initial.days.map(x=>({...x})),history:[]};save();go('home')}}
-go('home');
+const STORAGE_KEY = 'time-adventure-v3';
+const root = document.getElementById('app');
+const hello = document.getElementById('hello');
+
+const defaultState = () => ({
+  name: '',
+  stars: 0,
+  attempts: []
+});
+
+function loadState(){
+  try{
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if(!parsed || !Array.isArray(parsed.attempts)) throw new Error('bad data');
+    return { ...defaultState(), ...parsed };
+  }catch{
+    return defaultState();
+  }
+}
+
+let state = loadState();
+let view = 'home';
+let practiceMinutes = 125;
+let practiceStep = 5;
+let practiceTarget = null;
+let quizSession = null;
+let adventureSession = null;
+let dragInfo = null;
+let autoNextTimer = null;
+
+const scenes = {
+  hero: 'assets/hero.jpg',
+  clock: 'assets/clock_scene.jpg',
+  quiz: 'assets/quiz_scene.jpg',
+  bus: 'assets/bus_scene.jpg',
+  rocket: 'assets/rocket_scene.jpg',
+  mascot: 'assets/jjaekkagi.svg'
+};
+
+const adventureStories = [
+  { title:'학교 버스 미션', image:scenes.bus, icon:'🚌', theme:'버스를 놓치지 않게 시간을 계산해요!' },
+  { title:'로켓 출발 미션', image:scenes.rocket, icon:'🚀', theme:'정해진 시각에 출발하도록 도와줘요!' },
+  { title:'별빛 퀴즈 미션', image:scenes.quiz, icon:'⭐', theme:'시계를 읽고 정답을 골라요!' },
+  { title:'바늘 조작 미션', image:scenes.clock, icon:'🕰️', theme:'시계 바늘을 알맞게 움직여요!' },
+  { title:'학교 버스 미션 2', image:scenes.bus, icon:'🎒', theme:'출발 시간과 도착 시간을 계산해요!' },
+  { title:'로켓 출발 미션 2', image:scenes.rocket, icon:'🌙', theme:'몇 분 뒤에 출발하는지 맞혀요!' },
+  { title:'별빛 퀴즈 미션 2', image:scenes.quiz, icon:'✨', theme:'보기 중에서 알맞은 시간을 찾으세요!' },
+  { title:'바늘 조작 미션 2', image:scenes.clock, icon:'💜', theme:'문제에 맞게 시계를 완성해요!' }
+];
+
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function esc(v){
+  return String(v).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function rand(min,max){ return min + Math.floor(Math.random() * (max-min+1)); }
+function pick(arr){ return arr[rand(0, arr.length-1)]; }
+function shuffle(arr){ return [...arr].sort(() => Math.random() - 0.5); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+function clearAuto(){ if(autoNextTimer){ clearTimeout(autoNextTimer); autoNextTimer = null; } }
+function setView(next){ clearAuto(); view = next; render(); window.scrollTo({ top:0, behavior:'smooth' }); }
+
+function clockMod(minutes){
+  return ((Math.round(minutes) % 720) + 720) % 720;
+}
+
+function clockHour(minutes){
+  return Math.floor(clockMod(minutes) / 60) || 12;
+}
+
+function clockMinute(minutes){
+  return clockMod(minutes) % 60;
+}
+
+function clockText(minutes){
+  return `${clockHour(minutes)}시 ${pad(clockMinute(minutes))}분`;
+}
+
+function digitalText(minutes){
+  return `${pad(clockHour(minutes))}:${pad(clockMinute(minutes))}`;
+}
+
+function sayTime(total){
+  const safe = ((Math.round(total) % 1440) + 1440) % 1440;
+  const h24 = Math.floor(safe / 60);
+  const m = safe % 60;
+  const half = h24 < 12 ? '오전' : '오후';
+  const h12 = h24 % 12 || 12;
+  return `${half} ${h12}시 ${m}분`;
+}
+
+function heading(title, subtitle=''){
+  return `
+    <div class="section-head">
+      <div class="eyebrow">시간과 시각 배우기 ✨</div>
+      <h2>${title}</h2>
+      ${subtitle ? `<p class="muted">${subtitle}</p>` : ''}
+    </div>
+  `;
+}
+
+function starsText(){
+  hello.textContent = `${state.name ? state.name + ' 탐험가 · ' : ''}⭐ ${state.stars}개`;
+}
+
+function menuButton(label, act, cls=''){
+  return `<button class="btn ${cls}" data-act="${act}">${label}</button>`;
+}
+
+function tileCard(act, image, title, desc){
+  return `
+    <button class="tile image-tile" data-act="${act}">
+      <img src="${image}" alt="${title} 그림" class="tile-image">
+      <div class="tile-body">
+        <strong>${title}</strong>
+        <small>${desc}</small>
+      </div>
+    </button>
+  `;
+}
+
+function record(mode, correct, hinted=false, starGain=0){
+  state.attempts.push({ mode, correct, hinted, at: Date.now() });
+  if(correct && starGain > 0) state.stars += starGain;
+  saveState();
+  starsText();
+}
+
+function renderClockSVG(minutes, { interactive=false, context='practice' } = {}){
+  const value = clockMod(minutes);
+  const hourAngle = (Math.floor(value / 60) % 12) * 30 + (value % 60) / 2;
+  const minuteAngle = (value % 60) * 6;
+  let marks = '';
+  for(let i=1;i<=12;i++){
+    const angle = i * Math.PI / 6;
+    const x = 150 + 108 * Math.sin(angle);
+    const y = 158 - 108 * Math.cos(angle);
+    marks += `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" class="clock-number">${i}</text>`;
+  }
+  return `
+    <svg class="clock ${interactive ? 'interactive-clock' : ''}" data-clock-context="${context}" viewBox="0 0 300 300" role="img" aria-label="${clockText(minutes)} 시계">
+      <circle cx="150" cy="150" r="142" fill="#d8cdff"></circle>
+      <circle cx="150" cy="150" r="130" fill="#fffdf8"></circle>
+      ${marks}
+      <line class="hand hour-hand" x1="150" y1="150" x2="150" y2="95" stroke="#6550cf" stroke-width="11" stroke-linecap="round" transform="rotate(${hourAngle} 150 150)"></line>
+      <line class="hand minute-hand" x1="150" y1="150" x2="150" y2="62" stroke="#f07a8f" stroke-width="8" stroke-linecap="round" transform="rotate(${minuteAngle} 150 150)"></line>
+      <circle cx="150" cy="150" r="11" fill="#5d4c9d"></circle>
+    </svg>
+  `;
+}
+
+function updateClockDom(svg, minutes, syncMode){
+  const value = clockMod(minutes);
+  const hourAngle = (Math.floor(value / 60) % 12) * 30 + (value % 60) / 2;
+  const minuteAngle = (value % 60) * 6;
+  const hourHand = svg.querySelector('.hour-hand');
+  const minuteHand = svg.querySelector('.minute-hand');
+  if(hourHand) hourHand.setAttribute('transform', `rotate(${hourAngle} 150 150)`);
+  if(minuteHand) minuteHand.setAttribute('transform', `rotate(${minuteAngle} 150 150)`);
+  if(syncMode === 'practice'){
+    const digital = document.getElementById('practiceDigital');
+    if(digital) digital.textContent = digitalText(value);
+    const h = document.getElementById('practiceHour');
+    const m = document.getElementById('practiceMinute');
+    if(h) h.value = clockHour(value);
+    if(m) m.value = clockMinute(value);
+  }
+  if(syncMode === 'quiz'){
+    const digital = document.getElementById('quizDigital');
+    if(digital) digital.textContent = digitalText(value);
+    const h = document.getElementById('quizHour');
+    const m = document.getElementById('quizMinute');
+    if(h) h.value = clockHour(value);
+    if(m) m.value = clockMinute(value);
+  }
+}
+
+function extractAngle(event, svg){
+  const rect = svg.getBoundingClientRect();
+  const x = ((event.clientX - rect.left) / rect.width) * 300 - 150;
+  const y = ((event.clientY - rect.top) / rect.height) * 300 - 150;
+  return { angle: (Math.atan2(x, -y) * 180 / Math.PI + 360) % 360, radius: Math.hypot(x,y) };
+}
+
+function getContextMinutes(context){
+  if(context === 'practice') return practiceMinutes;
+  if(context === 'quiz' && quizSession?.current?.kind === 'set') return quizSession.current.userMinutes;
+  return 0;
+}
+
+function setContextMinutes(context, minutes){
+  const value = clockMod(minutes);
+  if(context === 'practice') practiceMinutes = value;
+  if(context === 'quiz' && quizSession?.current?.kind === 'set') quizSession.current.userMinutes = value;
+}
+
+function beginDrag(event, svg){
+  const context = svg.dataset.clockContext;
+  const info = extractAngle(event, svg);
+  dragInfo = {
+    context,
+    svg,
+    hand: info.radius > 88 ? 'minute' : 'hour'
+  };
+  svg.setPointerCapture(event.pointerId);
+  moveDrag(event);
+}
+
+function moveDrag(event){
+  if(!dragInfo) return;
+  const { context, svg, hand } = dragInfo;
+  const info = extractAngle(event, svg);
+  let value = getContextMinutes(context);
+  let hour = Math.floor(clockMod(value) / 60) % 12;
+  let minute = clockMod(value) % 60;
+  if(hand === 'minute'){
+    const nextMinute = Math.round(info.angle / 6) % 60;
+    if(minute > 45 && nextMinute < 15) hour = (hour + 1) % 12;
+    if(minute < 15 && nextMinute > 45) hour = (hour + 11) % 12;
+    minute = nextMinute;
+  }else{
+    const nextHour = Math.round(info.angle / 30) % 12;
+    hour = nextHour;
+  }
+  value = hour * 60 + minute;
+  if(practiceStep === 5 && context === 'practice') value = Math.round(value / 5) * 5;
+  setContextMinutes(context, value);
+  updateClockDom(svg, value, context);
+}
+
+function endDrag(){
+  dragInfo = null;
+}
+
+function startPracticeTarget(){
+  const units = practiceStep === 5 ? [0,5,10,15,20,25,30,35,40,45,50,55] : Array.from({length:60}, (_,i)=>i);
+  practiceTarget = rand(1,12) * 60 % 720 + pick(units);
+  if(practiceTarget === 0) practiceTarget = 720;
+}
+
+function homePage(){
+  root.innerHTML = `
+    <section class="hero-panel">
+      <img src="${scenes.hero}" alt="시계 요정과 아이들이 시간을 배우는 그림" class="hero-image">
+      <div class="hero-copy">
+        <div class="eyebrow">초등 2학년 수학 · 시간과 시각</div>
+        <h1>째깍째깍! 시간 탐험대</h1>
+        <p>시계 바늘을 움직이고, 퀴즈를 풀고, 모험 속에서 시간을 익혀 보세요.</p>
+        <div class="field slim-field">
+          <label class="label" for="name">탐험가 이름</label>
+          <input id="name" maxlength="14" value="${esc(state.name)}" placeholder="이름을 입력해 줘요">
+        </div>
+        <div class="actions">${menuButton('탐험 시작하기 🚀','start')}</div>
+      </div>
+    </section>
+  `;
+}
+
+function menuPage(){
+  root.innerHTML = `
+    ${heading(`${esc(state.name || '친구')} 탐험가, 오늘은 무엇을 할까?`, '시간과 시각만 골라서 재미있게 배워 보아요!')}
+    <section class="banner-card">
+      <img src="${scenes.hero}" alt="시간 탐험대 대표 그림" class="banner-image">
+      <div class="banner-copy">
+        <h3>시계 요정 째깍이와 함께 떠나는 시간 공부</h3>
+        <p>메뉴를 눌러서 시계 바늘 움직이기, 시계 퀴즈, 시간 모험 퀴즈를 해 보세요.</p>
+      </div>
+    </section>
+    <section class="tiles tiles-3">
+      ${tileCard('clock', scenes.clock, '시계를 움직여 봐요', '바늘을 직접 움직이며 시간을 맞혀요.')}
+      ${tileCard('quiz', scenes.quiz, '시계 퀴즈', '시계를 읽고 정답을 골라요.')}
+      ${tileCard('adventure', scenes.bus, '시간 모험 퀴즈', '그림과 함께 더 재미있는 모험 퀴즈!')}
+    </section>
+    <div class="actions center stack-mobile">
+      ${menuButton('학습 기록 보기 📊','result','secondary')}
+      ${menuButton('이름 바꾸기','home','secondary')}
+    </div>
+  `;
+}
+
+function clockPage(){
+  if(practiceTarget === null) startPracticeTarget();
+  root.innerHTML = `
+    ${heading('🕰️ 시계를 움직여 봐요', '시침과 분침을 직접 움직여 목표 시각을 만들어 보세요.')}
+    <div class="cols feature-cols">
+      <section class="panel feature-art">
+        <img src="${scenes.clock}" alt="시계 바늘을 움직이는 아이 그림" class="scene-image">
+        <div class="bubble-note">${practiceStep === 5 ? '5분 단위로 차근차근 연습 중!' : '1분 단위까지 세밀하게 연습 중!'}</div>
+      </section>
+      <section class="panel clock-play-panel">
+        <div class="mission-box">
+          <span class="pill">오늘의 목표</span>
+          <div class="target-time big-target">${clockText(practiceTarget)}</div>
+          <p class="muted">아래 시계를 움직여 같은 시간으로 만들어 주세요.</p>
+        </div>
+        <div class="clock-box">
+          ${renderClockSVG(practiceMinutes, { interactive:true, context:'practice' })}
+          <div id="practiceDigital" class="time-big">${digitalText(practiceMinutes)}</div>
+        </div>
+        <div class="controls-row">
+          <label class="mini-field">시
+            <input id="practiceHour" type="number" min="1" max="12" value="${clockHour(practiceMinutes)}">
+          </label>
+          <label class="mini-field">분
+            <input id="practiceMinute" type="number" min="0" max="59" value="${clockMinute(practiceMinutes)}">
+          </label>
+          ${menuButton('정답 확인','checkClock')}
+        </div>
+        <div class="actions wrap-actions">
+          ${menuButton('5분씩 연습','step5','secondary small')}
+          ${menuButton('1분까지 연습','step1','secondary small')}
+          ${menuButton('새로운 목표 받기','newClockTask','pink small')}
+          ${menuButton('학습 메뉴','menu','secondary small')}
+        </div>
+        <div id="clockFeedback" aria-live="polite"></div>
+      </section>
+    </div>
+  `;
+  hookClocks();
+}
+
+function questionPrompt(content){
+  return `<div class="question-prompt">${content}</div>`;
+}
+
+function makeReadQuestion(level){
+  const steps = [30, 5, 5, 1];
+  const step = steps[level] || 5;
+  const time = rand(1,12) * 60 % 720 + step * rand(0, Math.floor(59/step));
+  const answer = clockMod(time || 720);
+  const options = [answer];
+  const deltas = step === 1 ? [2,5,10,15,-5,-10] : [step, step*2, step*3, -step, -step*2, 60];
+  for(const delta of deltas){
+    let candidate = clockMod(answer + delta);
+    if(candidate === 0) candidate = 720;
+    if(!options.includes(candidate)) options.push(candidate);
+    if(options.length === 4) break;
+  }
+  while(options.length < 4){
+    let candidate = clockMod(answer + rand(1,11) * 5);
+    if(candidate === 0) candidate = 720;
+    if(!options.includes(candidate)) options.push(candidate);
+  }
+  return { kind:'read', prompt:'시계를 보고 알맞은 시간을 골라 보세요!', time:answer, answer, options:shuffle(options), hinted:false, solved:false };
+}
+
+function makeSetQuestion(level){
+  const steps = [30, 5, 5, 1];
+  const step = steps[level] || 5;
+  let target = rand(1,12) * 60 % 720 + step * rand(0, Math.floor(59/step));
+  if(target === 0) target = 720;
+  let userMinutes = rand(1,12) * 60 % 720;
+  return { kind:'set', prompt:'바늘을 움직여 아래 시각을 만들어 보세요!', target, answer:target, userMinutes, hinted:false, solved:false };
+}
+
+function buildQuizSession(){
+  return {
+    index: 0,
+    correct: 0,
+    questions: Array.from({length:10}, (_,i) => Math.random() < 0.45 ? makeReadQuestion(Math.min(3, Math.floor(i/3))) : makeSetQuestion(Math.min(3, Math.floor(i/3))))
+  };
+}
+
+function quizPage(){
+  if(!quizSession) quizSession = buildQuizSession();
+  const q = quizSession.questions[quizSession.index];
+  quizSession.current = q;
+  const progress = (quizSession.index / quizSession.questions.length) * 100;
+  root.innerHTML = `
+    ${heading('❓ 시계 퀴즈', '그림을 보며 시계를 읽고, 바늘도 움직여 보세요!')}
+    <section class="banner-card quiz-banner">
+      <img src="${scenes.quiz}" alt="시계 퀴즈 그림" class="banner-image small-banner">
+      <div class="banner-copy">
+        <div class="row spread"><strong>${quizSession.index + 1} / ${quizSession.questions.length} 문제</strong><span class="pill">⭐ ${state.stars}</span></div>
+        <div class="progress"><span style="width:${progress}%"></span></div>
+        ${q.kind === 'set'
+          ? questionPrompt(`<span class="question-instruction">바늘을 움직여</span><strong class="target-time">${clockText(q.target)}</strong><span class="question-instruction">을 만들어 보세요!</span>`)
+          : questionPrompt(`<span class="question-instruction">시계를 보고</span><strong class="target-time target-time-small">몇 시 몇 분인지</strong><span class="question-instruction">골라 보세요!</span>`)
+        }
+      </div>
+    </section>
+    <section class="panel quiz-panel">
+      <div class="clock-box ${q.kind === 'read' ? 'quiz-read-layout' : ''}">
+        ${renderClockSVG(q.kind === 'read' ? q.time : q.userMinutes, { interactive:q.kind==='set', context:'quiz' })}
+        ${q.kind === 'set' ? `<div id="quizDigital" class="time-big">${digitalText(q.userMinutes)}</div>` : ''}
+      </div>
+      ${q.kind === 'read' ? `
+        <div class="choices image-choices">
+          ${q.options.map((opt, idx) => `<button class="choice" data-choice="${idx}">${clockText(opt)}</button>`).join('')}
+        </div>
+      ` : `
+        <div class="controls-row quiz-control-row">
+          <label class="mini-field">시
+            <input id="quizHour" type="number" min="1" max="12" value="${clockHour(q.userMinutes)}">
+          </label>
+          <label class="mini-field">분
+            <input id="quizMinute" type="number" min="0" max="59" value="${clockMinute(q.userMinutes)}">
+          </label>
+          ${menuButton('정답 확인','checkQuizClock')}
+        </div>
+      `}
+      <div class="actions wrap-actions center">
+        ${menuButton('💡 힌트','hintQuiz','secondary small')}
+        ${menuButton('학습 메뉴','menu','secondary small')}
+      </div>
+      <div id="feedback" aria-live="polite"></div>
+    </section>
+  `;
+  hookClocks();
+}
+
+function showQuizHint(){
+  const q = quizSession.current;
+  q.hinted = true;
+  const msg = q.kind === 'set'
+    ? `긴 바늘은 분, 짧은 바늘은 시를 나타내요. 목표는 ${clockText(q.target)}예요.`
+    : `긴 바늘이 먼저 몇 분인지 알려 줘요. 그다음 짧은 바늘이 몇 시 근처인지 살펴보세요.`;
+  document.getElementById('feedback').innerHTML = `<div class="hint">💡 ${msg}</div>`;
+}
+
+function quizCorrectMessage(extra=''){ return `<div class="feedback success-box">🎉 정답이에요! ${extra}<br><span class="smalltext">잠시 후 다음 문제로 자동 이동해요.</span></div>`; }
+
+function finishQuiz(){
+  const score = quizSession.correct;
+  root.innerHTML = `
+    ${heading('🎉 시계 퀴즈 완료!', `${quizSession.questions.length}문제 중 ${score}문제 정답!`) }
+    <section class="hero-panel hero-finish">
+      <img src="${scenes.quiz}" alt="퀴즈 완료 그림" class="hero-image">
+      <div class="hero-copy">
+        <h3>${score >= 8 ? '정말 멋진 시간 박사예요!' : '끝까지 도전해서 멋져요!'}</h3>
+        <p>틀린 문제도 다시 풀어 본 것이 아주 중요해요.</p>
+        <div class="actions wrap-actions">
+          ${menuButton('다시 10문제 풀기','restartQuiz')}
+          ${menuButton('학습 기록 보기','result','secondary')}
+          ${menuButton('학습 메뉴','menu','secondary')}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function gradeQuiz(value){
+  const q = quizSession.current;
+  if(q.solved) return;
+  const correct = value === q.answer;
+  if(correct){
+    q.solved = true;
+    quizSession.correct += 1;
+    record('시계 퀴즈', true, q.hinted, q.hinted ? 1 : 2);
+    document.getElementById('feedback').innerHTML = quizCorrectMessage(q.kind === 'set' ? `${clockText(q.target)}을(를) 잘 만들었어요!` : `${clockText(q.answer)}이(가) 맞아요!`);
+    autoNextTimer = setTimeout(() => {
+      clearAuto();
+      quizSession.index += 1;
+      if(quizSession.index >= quizSession.questions.length) finishQuiz();
+      else quizPage();
+    }, 1500);
+  }else{
+    q.hinted = q.hinted || false;
+    record('시계 퀴즈', false, q.hinted, 0);
+    document.getElementById('feedback').innerHTML = `<div class="feedback warn">조금만 더 생각해 보세요! 다시 도전할 수 있어요.</div>`;
+  }
+}
+
+function buildAdventureSession(){
+  return {
+    index: 0,
+    correct: 0,
+    missions: adventureStories.map((story, i) => createAdventureMission(story, i))
+  };
+}
+
+function createAdventureMission(story, index){
+  const type = index % 2 === 0 ? 'end' : 'duration';
+  const start = rand(7, 18) * 60 + pick([0,10,20,30,40,50]);
+  const amount = pick([10,15,20,25,30,35,40,45,50,60]);
+  const end = start + amount;
+  let prompt = '';
+  let answer = 0;
+  let options = [];
+  if(type === 'end'){
+    prompt = `${sayTime(start)}에 시작했어요. ${amount}분 뒤에는 몇 시 몇 분일까요?`;
+    answer = ((end % 1440) + 1440) % 1440;
+    options = [answer, answer + 10, answer - 10, answer + 30].map(v => ((v % 1440) + 1440) % 1440);
+    options = [...new Set(options)].slice(0,4);
+    while(options.length < 4){
+      const v = ((answer + pick([20,-20,40,-40,50])) % 1440 + 1440) % 1440;
+      if(!options.includes(v)) options.push(v);
+    }
+  }else{
+    prompt = `${sayTime(start)}에 시작해서 ${sayTime(end)}에 끝났어요. 모두 몇 분 동안 했을까요?`;
+    answer = amount;
+    options = [answer, answer+10, Math.max(5, answer-10), answer+20];
+    options = [...new Set(options)].slice(0,4);
+    while(options.length < 4){
+      const v = pick([5,10,15,20,25,30,35,40,45,50,60,70]);
+      if(!options.includes(v)) options.push(v);
+    }
+  }
+  return {
+    ...story,
+    type,
+    start,
+    amount,
+    end,
+    prompt,
+    answer,
+    options: shuffle(options),
+    hinted:false,
+    solved:false
+  };
+}
+
+function adventurePage(){
+  if(!adventureSession) adventureSession = buildAdventureSession();
+  const mission = adventureSession.missions[adventureSession.index];
+  const progress = (adventureSession.index / adventureSession.missions.length) * 100;
+  root.innerHTML = `
+    ${heading('🌟 시간 모험 퀴즈', '그림 속 이야기를 읽고 시간을 계산해 보세요!')}
+    <section class="panel adventure-panel">
+      <div class="row spread"><span class="pill">${mission.icon} ${mission.title}</span><strong>${adventureSession.index + 1} / ${adventureSession.missions.length} 미션</strong></div>
+      <div class="progress"><span style="width:${progress}%"></span></div>
+      <img src="${mission.image}" alt="${mission.title} 그림" class="adventure-image">
+      <div class="mission-story-box">
+        <h3>${mission.theme}</h3>
+        <div class="question mission-question">${mission.prompt}</div>
+      </div>
+      <div class="choices mission-choices">
+        ${mission.options.map((opt, idx) => `<button class="choice choice-big" data-adventure-choice="${idx}">${mission.type === 'end' ? sayTime(opt) : opt + '분'}</button>`).join('')}
+      </div>
+      <div class="actions wrap-actions center">
+        ${menuButton('💡 힌트','advHint','secondary small')}
+        ${menuButton('학습 메뉴','menu','secondary small')}
+      </div>
+      <div id="advFeedback" aria-live="polite"></div>
+    </section>
+  `;
+}
+
+function showAdventureHint(){
+  const mission = adventureSession.missions[adventureSession.index];
+  mission.hinted = true;
+  const msg = mission.type === 'end'
+    ? '시작 시각에서 분을 먼저 더해 보세요. 60분이 넘으면 1시간이 커져요.'
+    : '시작 시각부터 끝 시각까지 10분씩 세어 보세요.';
+  document.getElementById('advFeedback').innerHTML = `<div class="hint">💡 ${msg}</div>`;
+}
+
+function adventureAnswer(choiceIndex){
+  const mission = adventureSession.missions[adventureSession.index];
+  if(mission.solved) return;
+  const picked = mission.options[choiceIndex];
+  const correct = picked === mission.answer;
+  if(correct){
+    mission.solved = true;
+    adventureSession.correct += 1;
+    record('시간 모험 퀴즈', true, mission.hinted, mission.hinted ? 1 : 2);
+    document.getElementById('advFeedback').innerHTML = quizCorrectMessage(mission.type === 'end' ? `정답은 ${sayTime(mission.answer)}이에요!` : `정답은 ${mission.answer}분이에요!`);
+    autoNextTimer = setTimeout(() => {
+      clearAuto();
+      adventureSession.index += 1;
+      if(adventureSession.index >= adventureSession.missions.length) finishAdventure();
+      else adventurePage();
+    }, 1600);
+  }else{
+    record('시간 모험 퀴즈', false, mission.hinted, 0);
+    document.getElementById('advFeedback').innerHTML = `<div class="feedback warn">조금만 더 생각해 볼까요? 다시 눌러 볼 수 있어요.</div>`;
+  }
+}
+
+function finishAdventure(){
+  const score = adventureSession.correct;
+  root.innerHTML = `
+    ${heading('🏁 시간 모험 완료!', `${adventureSession.missions.length}개의 모험 중 ${score}개 성공!`) }
+    <section class="hero-panel hero-finish">
+      <img src="${score % 2 === 0 ? scenes.rocket : scenes.bus}" alt="시간 모험 완료 그림" class="hero-image">
+      <div class="hero-copy">
+        <h3>${score >= 6 ? '정말 멋진 시간 모험가예요!' : '끝까지 모험을 해내서 훌륭해요!'}</h3>
+        <p>그림을 보며 시간을 계산하는 힘이 점점 커지고 있어요.</p>
+        <div class="actions wrap-actions">
+          ${menuButton('다시 모험하기','restartAdventure')}
+          ${menuButton('학습 기록 보기','result','secondary')}
+          ${menuButton('학습 메뉴','menu','secondary')}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function resultPage(){
+  const attempts = state.attempts;
+  const totalCorrect = attempts.filter(a => a.correct).length;
+  const noHint = attempts.filter(a => a.correct && !a.hinted).length;
+  const total = attempts.length;
+  const groups = ['시계 놀이터','시계 퀴즈','시간 모험 퀴즈'].map(name => {
+    const arr = attempts.filter(a => a.mode === name);
+    return { name, count: arr.length, rate: arr.length ? Math.round(arr.filter(x => x.correct).length / arr.length * 100) : 0 };
+  });
+  root.innerHTML = `
+    ${heading('📊 학습 기록', '정답도 중요하지만, 다시 도전한 경험이 더 중요해요!')}
+    <section class="stats-grid">
+      <div class="panel stat-card"><span class="stat-label">⭐ 모은 별</span><strong class="stat-number">${state.stars}</strong></div>
+      <div class="panel stat-card"><span class="stat-label">✏️ 문제 풀이</span><strong class="stat-number">${total}</strong></div>
+      <div class="panel stat-card"><span class="stat-label">✅ 맞힌 횟수</span><strong class="stat-number">${totalCorrect}</strong></div>
+      <div class="panel stat-card"><span class="stat-label">💡 힌트 없이 성공</span><strong class="stat-number">${noHint}</strong></div>
+    </section>
+    <section class="panel">
+      <h3>영역별 성취 보기</h3>
+      ${groups.map(g => `
+        <div class="progress-card">
+          <div class="row spread"><strong>${g.name}</strong><span>${g.count}회 · ${g.rate}%</span></div>
+          <div class="line"><span style="width:${g.rate}%"></span></div>
+        </div>
+      `).join('')}
+      <p class="smalltext muted">기록과 별은 이 브라우저에만 저장돼요.</p>
+    </section>
+    <div class="actions center wrap-actions">
+      ${menuButton('기록 초기화','resetRecords','secondary')}
+      ${menuButton('학습 메뉴','menu')}
+    </div>
+  `;
+}
+
+function hookClocks(){
+  document.querySelectorAll('.interactive-clock').forEach(svg => {
+    svg.onpointerdown = (event) => beginDrag(event, svg);
+    svg.onpointermove = (event) => { if(dragInfo) moveDrag(event); };
+    svg.onpointerup = endDrag;
+    svg.onpointercancel = endDrag;
+    svg.onlostpointercapture = endDrag;
+  });
+}
+
+function render(){
+  starsText();
+  switch(view){
+    case 'home': homePage(); break;
+    case 'menu': menuPage(); break;
+    case 'clock': clockPage(); break;
+    case 'quiz': quizPage(); break;
+    case 'adventure': adventurePage(); break;
+    case 'result': resultPage(); break;
+    default: homePage();
+  }
+}
+
+function handleAction(action){
+  switch(action){
+    case 'home': setView('home'); break;
+    case 'start': {
+      const nameField = document.getElementById('name');
+      state.name = nameField && nameField.value.trim() ? nameField.value.trim() : '시간 탐험가';
+      saveState();
+      setView('menu');
+      break;
+    }
+    case 'menu': setView('menu'); break;
+    case 'clock': setView('clock'); break;
+    case 'quiz': quizSession = null; setView('quiz'); break;
+    case 'adventure': adventureSession = null; setView('adventure'); break;
+    case 'result': setView('result'); break;
+    case 'step5': practiceStep = 5; practiceMinutes = Math.round(practiceMinutes / 5) * 5; clockPage(); break;
+    case 'step1': practiceStep = 1; clockPage(); break;
+    case 'newClockTask': startPracticeTarget(); clockPage(); break;
+    case 'checkClock': {
+      const ok = clockMod(practiceMinutes) === clockMod(practiceTarget);
+      record('시계 놀이터', ok, false, ok ? 2 : 0);
+      document.getElementById('clockFeedback').innerHTML = `
+        <div class="feedback ${ok ? 'success-box' : 'warn'}">
+          ${ok ? `🎉 성공! ${clockText(practiceTarget)}을(를) 잘 만들었어요.` : `아직 달라요. 목표는 ${clockText(practiceTarget)}이에요. 다시 움직여 보세요!`}
+        </div>
+      `;
+      if(ok) startPracticeTarget();
+      break;
+    }
+    case 'checkQuizClock': {
+      if(quizSession?.current?.kind === 'set') gradeQuiz(clockMod(quizSession.current.userMinutes));
+      break;
+    }
+    case 'hintQuiz': showQuizHint(); break;
+    case 'restartQuiz': quizSession = null; setView('quiz'); break;
+    case 'advHint': showAdventureHint(); break;
+    case 'restartAdventure': adventureSession = null; setView('adventure'); break;
+    case 'resetRecords':
+      if(confirm('학습 기록과 별을 모두 지울까요?')){
+        state.stars = 0;
+        state.attempts = [];
+        saveState();
+        resultPage();
+        starsText();
+      }
+      break;
+  }
+}
+
+root.addEventListener('click', (event) => {
+  const choice = event.target.closest('[data-choice]');
+  if(choice && quizSession?.current?.kind === 'read'){
+    gradeQuiz(quizSession.current.options[Number(choice.dataset.choice)]);
+    return;
+  }
+  const advChoice = event.target.closest('[data-adventure-choice]');
+  if(advChoice && adventureSession){
+    adventureAnswer(Number(advChoice.dataset.adventureChoice));
+    return;
+  }
+  const actionButton = event.target.closest('[data-act]');
+  if(actionButton) handleAction(actionButton.dataset.act);
+});
+
+root.addEventListener('input', (event) => {
+  if(event.target.id === 'practiceHour' || event.target.id === 'practiceMinute'){
+    const h = clamp(Number(document.getElementById('practiceHour').value) || 12, 1, 12);
+    const m = clamp(Number(document.getElementById('practiceMinute').value) || 0, 0, 59);
+    practiceMinutes = clockMod(h % 12 * 60 + m);
+    const svg = document.querySelector('[data-clock-context="practice"]');
+    if(svg) updateClockDom(svg, practiceMinutes, 'practice');
+  }
+  if(event.target.id === 'quizHour' || event.target.id === 'quizMinute'){
+    if(quizSession?.current?.kind !== 'set') return;
+    const h = clamp(Number(document.getElementById('quizHour').value) || 12, 1, 12);
+    const m = clamp(Number(document.getElementById('quizMinute').value) || 0, 0, 59);
+    quizSession.current.userMinutes = clockMod(h % 12 * 60 + m);
+    const svg = document.querySelector('[data-clock-context="quiz"]');
+    if(svg) updateClockDom(svg, quizSession.current.userMinutes, 'quiz');
+  }
+});
+
+document.getElementById('homeBtn').addEventListener('click', () => setView(state.name ? 'menu' : 'home'));
+render();
