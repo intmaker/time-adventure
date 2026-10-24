@@ -27,6 +27,7 @@ let practiceStep = 5;
 let practiceTarget = null;
 let quizSession = null;
 let adventureSession = null;
+let formatSession = null;
 let dragInfo = null;
 let autoNextTimer = null;
 
@@ -281,13 +282,14 @@ function menuPage(){
       <img src="${scenes.hero}" alt="시간 탐험대 대표 그림" class="banner-image">
       <div class="banner-copy">
         <h3>시계 요정 째깍이와 함께 떠나는 시간 공부</h3>
-        <p>메뉴를 눌러서 시계 바늘 움직이기, 시계 퀴즈, 시간 모험 퀴즈를 해 보세요.</p>
+        <p>메뉴를 눌러서 시계 조작, 퀴즈, 시간 모험, 오전·오후와 24시간을 배워 보세요.</p>
       </div>
     </section>
     <section class="tiles tiles-3">
       ${tileCard('clock', scenes.clock, '시계를 움직여 봐요', '바늘을 직접 움직이며 시간을 맞혀요.')}
       ${tileCard('quiz', scenes.quiz, '시계 퀴즈', '시계를 읽고 정답을 골라요.')}
       ${tileCard('adventure', scenes.bus, '시간 모험 퀴즈', '그림과 함께 더 재미있는 모험 퀴즈!')}
+      ${tileCard('format', scenes.rocket, '오전·오후와 24시간', '12시간제와 24시간제를 바꿔 봐요!')}
     </section>
     <div class="actions center stack-mobile">
       ${menuButton('학습 기록 보기 📊','result','secondary')}
@@ -603,12 +605,83 @@ function finishAdventure(){
   `;
 }
 
+
+function twelveHourLabel(h,m){
+  const prefix = h < 12 ? '오전' : '오후';
+  return prefix + ' ' + (h % 12 || 12) + '시 ' + pad(m) + '분';
+}
+function twentyFourLabel(h,m){return pad(h) + ':' + pad(m);}
+function buildFormatSession(){
+ const questions=[];
+ for(let i=0;i<12;i++){
+   const level=i%3;
+   const special=[0,12,1,11,13,23];
+   const h=i<6?special[i]:rand(0,23);
+   const m=pick([0,10,15,20,30,40,45,50]);
+   const options=[];
+   let answer,prompt,hint;
+   if(level===0){
+     answer=twentyFourLabel(h,m);
+     prompt=twelveHourLabel(h,m)+'을 24시간제로 바꾸면?';
+     hint='오전은 그대로, 오후는 12를 더하는 경우가 많아요. 단, 오후 12시는 12시예요.';
+     for(let d of [0,1,-1,12,-12,2,11]){const v=twentyFourLabel((h+d+24)%24,m);if(!options.includes(v))options.push(v);if(options.length===4)break;}
+   }else if(level===1){
+     answer=twelveHourLabel(h,m);
+     prompt=twentyFourLabel(h,m)+'를 오전·오후로 나타내면?';
+     hint='0시는 오전 12시, 12시는 오후 12시예요.';
+     for(const dh of [0,12,1,-1,11,2]){
+       const label=twelveHourLabel((h+dh+24)%24,m);
+       if(!options.includes(label))options.push(label);
+       if(options.length===4)break;
+     }
+   }else{
+     answer=h<12?'오전':'오후';
+     prompt=twentyFourLabel(h,m)+'는 오전일까요, 오후일까요?';
+     hint='0시부터 11시 59분까지는 오전, 12시부터 23시 59분까지는 오후예요.';
+     options.push('오전','오후','정오','자정');
+     if(h===0&&m===0) {answer='자정';prompt='24시간제 00:00은 무엇일까요?';}
+     if(h===12&&m===0){answer='정오';prompt='24시간제 12:00은 무엇일까요?';}
+   }
+   questions.push({prompt,answer,options:shuffle(options),hint,solved:false,hinted:false});
+ }
+ return {index:0,correct:0,questions};
+}
+function formatPage(){
+ if(!formatSession)formatSession=buildFormatSession();
+ const q=formatSession.questions[formatSession.index];
+ root.innerHTML=heading('🌞 오전·오후와 24시간','12시간제와 24시간제를 구분하고 서로 바꿔 봐요!')+
+ '<section class="panel format-panel"><div class="row spread"><span class="pill">🌞🌙 시간 변환 탐험</span><strong>'+(formatSession.index+1)+' / 12 문제</strong></div>'+
+ '<div class="progress"><span style="width:'+(formatSession.index/12*100)+'%"></span></div>'+
+ '<div class="format-visual"><div class="format-sun">☀️<small>오전</small></div><div class="format-display">'+esc(q.prompt)+'</div><div class="format-moon">🌙<small>오후</small></div></div>'+
+ '<div class="choices format-choices">'+q.options.map((v,i)=>'<button class="choice" data-format-choice="'+i+'">'+esc(v)+'</button>').join('')+'</div>'+
+ '<div class="actions center">'+menuButton('💡 힌트','hintFormat','secondary small')+menuButton('학습 메뉴','menu','secondary small')+'</div><div id="formatFeedback" aria-live="polite"></div></section>';
+}
+function showFormatHint(){const q=formatSession.questions[formatSession.index];q.hinted=true;document.getElementById('formatFeedback').innerHTML='<div class="hint">💡 '+esc(q.hint)+'</div>';}
+function answerFormat(i){
+ const q=formatSession.questions[formatSession.index];
+ if(q.solved)return;
+ if(q.options[i]===q.answer){
+  q.solved=true;formatSession.correct++;
+  record('오전·오후와 24시간',true,q.hinted,q.hinted?1:2);
+  document.getElementById('formatFeedback').innerHTML='<div class="feedback success-box">🎉 정답이에요! '+esc(q.answer)+'<br><span class="smalltext">다음 문제로 이동해요.</span></div>';
+  autoNextTimer=setTimeout(()=>{clearAuto();formatSession.index++;if(formatSession.index===12)finishFormat();else formatPage();},1500);
+ }else{
+  record('오전·오후와 24시간',false,q.hinted,0);
+  document.getElementById('formatFeedback').innerHTML='<div class="feedback warn">아쉬워요! 오전과 오후를 한 번 더 살펴보세요.</div>';
+ }
+}
+function finishFormat(){
+ root.innerHTML=heading('🎉 시간 변환 탐험 완료!',formatSession.correct+' / 12문제 정답')+
+ '<div class="panel" style="text-align:center"><div style="font-size:76px">🏆⏰</div><h2>오전·오후 시간 박사!</h2><p>자정과 정오도 다시 기억해 봐요.</p>'+
+ '<div class="actions center">'+menuButton('다시 풀기','restartFormat')+menuButton('학습 기록','result','secondary')+menuButton('학습 메뉴','menu','secondary')+'</div></div>';
+}
+
 function resultPage(){
   const attempts = state.attempts;
   const totalCorrect = attempts.filter(a => a.correct).length;
   const noHint = attempts.filter(a => a.correct && !a.hinted).length;
   const total = attempts.length;
-  const groups = ['시계 놀이터','시계 퀴즈','시간 모험 퀴즈'].map(name => {
+  const groups = ['시계 놀이터','시계 퀴즈','시간 모험 퀴즈','오전·오후와 24시간'].map(name => {
     const arr = attempts.filter(a => a.mode === name);
     return { name, count: arr.length, rate: arr.length ? Math.round(arr.filter(x => x.correct).length / arr.length * 100) : 0 };
   });
@@ -655,6 +728,7 @@ function render(){
     case 'clock': clockPage(); break;
     case 'quiz': quizPage(); break;
     case 'adventure': adventurePage(); break;
+    case 'format': formatPage(); break;
     case 'result': resultPage(); break;
     default: homePage();
   }
@@ -674,6 +748,7 @@ function handleAction(action){
     case 'clock': setView('clock'); break;
     case 'quiz': quizSession = null; setView('quiz'); break;
     case 'adventure': adventureSession = null; setView('adventure'); break;
+    case 'format': formatSession = null; setView('format'); break;
     case 'result': setView('result'); break;
     case 'step5': practiceStep = 5; practiceMinutes = Math.round(practiceMinutes / 5) * 5; clockPage(); break;
     case 'step1': practiceStep = 1; clockPage(); break;
@@ -696,6 +771,8 @@ function handleAction(action){
     case 'hintQuiz': showQuizHint(); break;
     case 'restartQuiz': quizSession = null; setView('quiz'); break;
     case 'advHint': showAdventureHint(); break;
+    case 'hintFormat': showFormatHint(); break;
+    case 'restartFormat': formatSession=null; setView('format'); break;
     case 'restartAdventure': adventureSession = null; setView('adventure'); break;
     case 'resetRecords':
       if(confirm('학습 기록과 별을 모두 지울까요?')){
@@ -715,6 +792,8 @@ root.addEventListener('click', (event) => {
     gradeQuiz(quizSession.current.options[Number(choice.dataset.choice)]);
     return;
   }
+  const formatChoice = event.target.closest('[data-format-choice]');
+  if(formatChoice && formatSession){ answerFormat(Number(formatChoice.dataset.formatChoice)); return; }
   const advChoice = event.target.closest('[data-adventure-choice]');
   if(advChoice && adventureSession){
     adventureAnswer(Number(advChoice.dataset.adventureChoice));
