@@ -343,33 +343,26 @@ function questionPrompt(content){
   return `<div class="question-prompt">${content}</div>`;
 }
 
-function makeReadQuestion(level){
-  const steps = [30, 5, 5, 1];
-  const step = steps[level] || 5;
-  const time = rand(1,12) * 60 % 720 + step * rand(0, Math.floor(59/step));
-  const answer = clockMod(time);
-  const options = [answer];
-  const deltas = step === 1 ? [2,5,10,15,-5,-10] : [step, step*2, step*3, -step, -step*2, 60];
-  for(const delta of deltas){
-    let candidate = clockMod(answer + delta);
-    candidate = clockMod(candidate);
-    if(!options.includes(candidate)) options.push(candidate);
-    if(options.length === 4) break;
-  }
-  while(options.length < 4){
-    let candidate = clockMod(answer + rand(1,11) * 5);
-    if(candidate === 0) candidate = 720;
-    if(!options.includes(candidate)) options.push(candidate);
-  }
-  return { kind:'read', prompt:'시계를 보고 알맞은 시간을 골라 보세요!', time:answer, answer, options:shuffle(options), hinted:false, solved:false };
-}
 
+function uniqueClockOptions(answer, step=5){
+  const canonical=clockMod(answer), vals=[canonical];
+  for(const d of [step,-step,2*step,-2*step,60,-60,15,-15,30,-30,120]){
+    const x=clockMod(canonical+d);
+    if(!vals.includes(x))vals.push(x);
+    if(vals.length===4)break;
+  }
+  return shuffle(vals);
+}
+function makeReadQuestion(level){
+ const minutePools=[[0,30],[0,5,10,15,20,25,30,35,40,45,50,55],[5,10,15,20,25,30,35,40,45,50,55],[2,7,12,18,23,28,36,43,54]];
+ const minute=pick(minutePools[Math.min(level,3)]);
+ const answer=clockMod(rand(1,12)*60+minute);
+ return {kind:'read',prompt:'시계를 보고 알맞은 시각을 골라 보세요!',time:answer,answer,options:uniqueClockOptions(answer,level===3?1:5),hinted:false,solved:false};
+}
 function makeSetQuestion(level){
-  const steps = [30, 5, 5, 1];
-  const step = steps[level] || 5;
-  let target = clockMod(rand(1,12) * 60 + step * rand(0, Math.floor(59/step)));
-  let userMinutes = rand(1,12) * 60 % 720;
-  return { kind:'set', prompt:'바늘을 움직여 아래 시각을 만들어 보세요!', target, answer:target, userMinutes, hinted:false, solved:false };
+ const minutePools=[[0,30],[0,5,10,15,20,25,30,35,40,45,50,55],[5,10,15,20,25,30,35,40,45,50,55],[2,7,12,18,23,28,36,43,54]];
+ const target=clockMod(rand(1,12)*60+pick(minutePools[Math.min(level,3)]));
+ return {kind:'set',prompt:'시침과 분침을 움직여 보세요!',target,answer:target,userMinutes:clockMod(rand(1,12)*60),hinted:false,solved:false};
 }
 
 function buildQuizSession(){
@@ -488,45 +481,35 @@ function buildAdventureSession(){
   };
 }
 
-function createAdventureMission(story, index){
-  const type = index % 2 === 0 ? 'end' : 'duration';
-  const start = rand(7, 18) * 60 + pick([0,10,20,30,40,50]);
-  const amount = pick([10,15,20,25,30,35,40,45,50,60]);
-  const end = start + amount;
-  let prompt = '';
-  let answer = 0;
-  let options = [];
-  if(type === 'end'){
-    prompt = `${sayTime(start)}에 시작했어요. ${amount}분 뒤에는 몇 시 몇 분일까요?`;
-    answer = ((end % 1440) + 1440) % 1440;
-    options = [answer, answer + 10, answer - 10, answer + 30].map(v => ((v % 1440) + 1440) % 1440);
-    options = [...new Set(options)].slice(0,4);
-    while(options.length < 4){
-      const v = ((answer + pick([20,-20,40,-40,50])) % 1440 + 1440) % 1440;
-      if(!options.includes(v)) options.push(v);
-    }
-  }else{
-    prompt = `${sayTime(start)}에 시작해서 ${sayTime(end)}에 끝났어요. 모두 몇 분 동안 했을까요?`;
-    answer = amount;
-    options = [answer, answer+10, Math.max(5, answer-10), answer+20];
-    options = [...new Set(options)].slice(0,4);
-    while(options.length < 4){
-      const v = pick([5,10,15,20,25,30,35,40,45,50,60,70]);
-      if(!options.includes(v)) options.push(v);
-    }
-  }
-  return {
-    ...story,
-    type,
-    start,
-    amount,
-    end,
-    prompt,
-    answer,
-    options: shuffle(options),
-    hinted:false,
-    solved:false
-  };
+
+function createAdventureMission(story,index){
+ const category=index%4;
+ const minuteChoices=[10,15,20,25,30,35,40,45,50,55];
+ const start=rand(7,17)*60+pick([0,10,15,20,25,30,40,45,50]);
+ const amount=pick(minuteChoices);
+ const end=start+amount;
+ let type,answer,prompt,options;
+ if(category===0){
+  type='end';answer=end;
+  prompt=sayTime(start)+'에 출발했어요. '+amount+'분 뒤에는 몇 시 몇 분일까요?';
+  options=shuffle([answer,answer+10,answer-10,answer+20]);
+ }else if(category===1){
+  type='duration';answer=amount;
+  prompt=sayTime(start)+'에 시작해 '+sayTime(end)+'에 끝났어요. 걸린 시간은 몇 분일까요?';
+  options=shuffle([amount,amount+10,Math.max(5,amount-10),amount+20]);
+ }else if(category===2){
+  type='before';answer=start-amount;
+  prompt=sayTime(start)+'보다 '+amount+'분 전은 몇 시 몇 분일까요?';
+  options=shuffle([answer,answer+10,answer-10,answer+20]);
+ }else{
+  type='unit';answer=60+amount;
+  prompt='1시간 '+amount+'분은 모두 몇 분일까요?';
+  options=shuffle([answer,amount,answer+10,answer-10]);
+ }
+ const unique=[...new Set(options)];
+ let v=1;
+ while(unique.length<4){const candidate=answer+(v++*5);if(!unique.includes(candidate))unique.push(candidate);}
+ return {...story,type,start,amount,end,prompt,answer,options:shuffle(unique.slice(0,4)),hinted:false,solved:false};
 }
 
 function adventurePage(){
@@ -544,7 +527,7 @@ function adventurePage(){
         <div class="question mission-question">${mission.prompt}</div>
       </div>
       <div class="choices mission-choices">
-        ${mission.options.map((opt, idx) => `<button class="choice choice-big" data-adventure-choice="${idx}">${mission.type === 'end' ? sayTime(opt) : opt + '분'}</button>`).join('')}
+        ${mission.options.map((opt, idx) => `<button class="choice choice-big" data-adventure-choice="${idx}">${['end','before'].includes(mission.type) ? sayTime(opt) : opt + '분'}</button>`).join('')}
       </div>
       <div class="actions wrap-actions center">
         ${menuButton('💡 힌트','advHint','secondary small')}
@@ -558,9 +541,7 @@ function adventurePage(){
 function showAdventureHint(){
   const mission = adventureSession.missions[adventureSession.index];
   mission.hinted = true;
-  const msg = mission.type === 'end'
-    ? '시작 시각에서 분을 먼저 더해 보세요. 60분이 넘으면 1시간이 커져요.'
-    : '시작 시각부터 끝 시각까지 10분씩 세어 보세요.';
+  const msg = mission.type === 'end' ? '시작 시각에 분을 더해 보세요. 60분이 되면 1시간이 늘어요.' : mission.type === 'duration' ? '시작부터 끝까지 몇 분인지 세어 보세요.' : mission.type === 'before' ? '시계 바늘을 거꾸로 움직이는 것을 생각해 보세요.' : '1시간은 60분이에요.';
   document.getElementById('advFeedback').innerHTML = `<div class="hint">💡 ${msg}</div>`;
 }
 
@@ -573,7 +554,7 @@ function adventureAnswer(choiceIndex){
     mission.solved = true;
     adventureSession.correct += 1;
     record('시간 모험 퀴즈', true, mission.hinted, mission.hinted ? 1 : 2);
-    document.getElementById('advFeedback').innerHTML = quizCorrectMessage(mission.type === 'end' ? `정답은 ${sayTime(mission.answer)}이에요!` : `정답은 ${mission.answer}분이에요!`);
+    document.getElementById('advFeedback').innerHTML = quizCorrectMessage(['end','before'].includes(mission.type) ? `정답은 ${sayTime(mission.answer)}이에요!` : `정답은 ${mission.answer}분이에요!`);
     autoNextTimer = setTimeout(() => {
       clearAuto();
       adventureSession.index += 1;
