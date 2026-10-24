@@ -345,12 +345,12 @@ function makeReadQuestion(level){
   const steps = [30, 5, 5, 1];
   const step = steps[level] || 5;
   const time = rand(1,12) * 60 % 720 + step * rand(0, Math.floor(59/step));
-  const answer = clockMod(time || 720);
+  const answer = clockMod(time);
   const options = [answer];
   const deltas = step === 1 ? [2,5,10,15,-5,-10] : [step, step*2, step*3, -step, -step*2, 60];
   for(const delta of deltas){
     let candidate = clockMod(answer + delta);
-    if(candidate === 0) candidate = 720;
+    candidate = clockMod(candidate);
     if(!options.includes(candidate)) options.push(candidate);
     if(options.length === 4) break;
   }
@@ -365,8 +365,7 @@ function makeReadQuestion(level){
 function makeSetQuestion(level){
   const steps = [30, 5, 5, 1];
   const step = steps[level] || 5;
-  let target = rand(1,12) * 60 % 720 + step * rand(0, Math.floor(59/step));
-  if(target === 0) target = 720;
+  let target = clockMod(rand(1,12) * 60 + step * rand(0, Math.floor(59/step)));
   let userMinutes = rand(1,12) * 60 % 720;
   return { kind:'set', prompt:'바늘을 움직여 아래 시각을 만들어 보세요!', target, answer:target, userMinutes, hinted:false, solved:false };
 }
@@ -460,7 +459,7 @@ function finishQuiz(){
 function gradeQuiz(value){
   const q = quizSession.current;
   if(q.solved) return;
-  const correct = value === q.answer;
+  const correct = q.kind === 'set' || q.kind === 'read' ? clockMod(value) === clockMod(q.answer) : value === q.answer;
   if(correct){
     q.solved = true;
     quizSession.correct += 1;
