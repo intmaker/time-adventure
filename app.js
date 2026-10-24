@@ -659,8 +659,11 @@ function finishAdventure(){
 
 
 function twelveHourLabel(h,m){
-  const prefix = h < 12 ? '오전' : '오후';
-  return prefix + ' ' + (h % 12 || 12) + '시 ' + pad(m) + '분';
+  // Spell out the noon and midnight boundaries for early learners.
+  if(h===0) return m===0 ? '자정(밤 12시)' : '밤 12시 '+pad(m)+'분(자정 '+m+'분 뒤)';
+  if(h===12) return m===0 ? '정오(낮 12시)' : '낮 12시 '+pad(m)+'분';
+  const prefix=h<12?'오전':'오후';
+  return prefix+' '+(h%12)+'시 '+pad(m)+'분';
 }
 function twentyFourLabel(h,m){return pad(h) + ':' + pad(m);}
 function buildFormatSession(){
@@ -675,12 +678,12 @@ function buildFormatSession(){
    if(level===0){
      answer=twentyFourLabel(h,m);
      prompt=twelveHourLabel(h,m)+'을 24시간제로 바꾸면?';
-     hint='오전은 그대로, 오후는 12를 더하는 경우가 많아요. 단, 오후 12시는 12시예요.';
+     hint='오전 1~11시는 그대로 쓰고, 오후 1~11시는 12를 더해요. 자정은 00시, 정오는 12시예요.';
      for(let d of [0,1,-1,12,-12,2,11]){const v=twentyFourLabel((h+d+24)%24,m);if(!options.includes(v))options.push(v);if(options.length===4)break;}
    }else if(level===1){
      answer=twelveHourLabel(h,m);
      prompt=twentyFourLabel(h,m)+'를 오전·오후로 나타내면?';
-     hint='0시는 오전 12시, 12시는 오후 12시예요.';
+     hint='00시는 밤 12시(자정), 12시는 낮 12시(정오)로 읽어요. 다른 시각은 오전·오후를 구별해요.';
      for(const dh of [0,12,1,-1,11,2]){
        const label=twelveHourLabel((h+dh+24)%24,m);
        if(!options.includes(label))options.push(label);
@@ -689,7 +692,7 @@ function buildFormatSession(){
    }else{
      answer=h<12?'오전':'오후';
      prompt=twentyFourLabel(h,m)+'는 오전일까요, 오후일까요?';
-     hint='0시부터 11시 59분까지는 오전, 12시부터 23시 59분까지는 오후예요.';
+     hint='자정은 하루가 시작되는 밤 12시, 정오는 한낮의 12시예요. 그 사이가 오전, 정오 뒤가 오후예요.';
      options.push('오전','오후','정오','자정');
      if(h===0&&m===0) {answer='자정';prompt='24시간제 00:00은 무엇일까요?';}
      if(h===12&&m===0){answer='정오';prompt='24시간제 12:00은 무엇일까요?';}
