@@ -502,13 +502,26 @@ function createAdventureMission(story,index){
   prompt=sayTime(start)+'보다 '+amount+'분 전은 몇 시 몇 분일까요?';
   options=shuffle([answer,answer+10,answer-10,answer+20]);
  }else{
-  type='unit';answer=60+amount;
-  prompt='1시간 '+amount+'분은 모두 몇 분일까요?';
-  options=shuffle([answer,amount,answer+10,answer-10]);
+  type='unit';
+  const variant=rand(0,2);
+  if(variant===0){
+   answer=60+amount;
+   prompt='1시간 '+amount+'분은 모두 몇 분일까요?';
+   options=shuffle([answer,amount,answer+10,answer-10]);
+  }else if(variant===1){
+   answer=120;
+   prompt='2시간은 모두 몇 분일까요?';
+   options=shuffle([120,60,90,100]);
+  }else{
+   const all=60+amount;
+   answer='1시간 '+amount+'분';
+   prompt=all+'분을 몇 시간 몇 분으로 나타내면?';
+   options=shuffle([answer,'1시간 '+(amount+10)+'분',amount+'분','2시간 '+amount+'분']);
+  }
  }
  const unique=[...new Set(options)];
  let v=1;
- while(unique.length<4){const candidate=answer+(v++*5);if(!unique.includes(candidate))unique.push(candidate);}
+ while(unique.length<4){const candidate=typeof answer==='number'?answer+(v++*5):answer+' ('+(v++)+')';if(!unique.includes(candidate))unique.push(candidate);}
  return {...story,type,start,amount,end,prompt,answer,options:shuffle(unique.slice(0,4)),hinted:false,solved:false};
 }
 
@@ -527,7 +540,7 @@ function adventurePage(){
         <div class="question mission-question">${mission.prompt}</div>
       </div>
       <div class="choices mission-choices">
-        ${mission.options.map((opt, idx) => `<button class="choice choice-big" data-adventure-choice="${idx}">${['end','before'].includes(mission.type) ? sayTime(opt) : opt + '분'}</button>`).join('')}
+        ${mission.options.map((opt, idx) => `<button class="choice choice-big" data-adventure-choice="${idx}">${['end','before'].includes(mission.type) ? sayTime(opt) : mission.type==='unit'&&typeof opt==='string'?opt:opt+'분'}</button>`).join('')}
       </div>
       <div class="actions wrap-actions center">
         ${menuButton('💡 힌트','advHint','secondary small')}
@@ -554,7 +567,7 @@ function adventureAnswer(choiceIndex){
     mission.solved = true;
     adventureSession.correct += 1;
     record('시간 모험 퀴즈', true, mission.hinted, mission.hinted ? 1 : 2);
-    document.getElementById('advFeedback').innerHTML = quizCorrectMessage(['end','before'].includes(mission.type) ? `정답은 ${sayTime(mission.answer)}이에요!` : `정답은 ${mission.answer}분이에요!`);
+    document.getElementById('advFeedback').innerHTML = quizCorrectMessage(['end','before'].includes(mission.type) ? `정답은 ${sayTime(mission.answer)}이에요!` : typeof mission.answer==='string'?`정답은 ${mission.answer}이에요!`:`정답은 ${mission.answer}분이에요!`);
     autoNextTimer = setTimeout(() => {
       clearAuto();
       adventureSession.index += 1;
