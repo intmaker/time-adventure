@@ -203,10 +203,22 @@ function setContextMinutes(context, minutes){
 function beginDrag(event, svg){
   const context = svg.dataset.clockContext;
   const info = extractAngle(event, svg);
+  // The minute hand is 88 SVG units long, while the hour hand is 55.
+  // Select by distance to the actual hand segment, not an unreachable radius threshold.
+  const current = clockMod(getContextMinutes(context));
+  const minuteAngle = (current % 60) * 6;
+  const hourAngle = (Math.floor(current / 60) % 12) * 30 + (current % 60) / 2;
+  const distanceToHand = (angle, length) => {
+    const diff = Math.abs((info.angle - angle + 540) % 360 - 180) * Math.PI / 180;
+    const projected = Math.max(0, Math.min(length, info.radius * Math.cos(diff)));
+    return Math.sqrt(info.radius ** 2 + projected ** 2 - 2 * info.radius * projected * Math.cos(diff));
+  };
+  const minuteDist = distanceToHand(minuteAngle, 88);
+  const hourDist = distanceToHand(hourAngle, 55);
   dragInfo = {
     context,
     svg,
-    hand: info.radius > 88 ? 'minute' : 'hour'
+    hand: minuteDist <= hourDist ? 'minute' : 'hour'
   };
   svg.setPointerCapture(event.pointerId);
   moveDrag(event);
