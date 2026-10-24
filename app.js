@@ -313,6 +313,7 @@ function clockPage(){
     <div class="cols feature-cols">
       <section class="panel feature-art">
         <img src="${scenes.clock}" alt="시계 바늘을 움직이는 아이 그림" class="scene-image">
+        <button class="btn dual-clock-cta" data-act="twoClocks">🕰️🕰️ 두 시계 비교 놀이 <span>두 시계의 시간 차이 계산하기 →</span></button>
         <div class="bubble-note">${practiceStep === 5 ? '5분 단위로 차근차근 연습 중!' : '1분 단위까지 세밀하게 연습 중!'}</div>
       </section>
       <section class="panel clock-play-panel">
@@ -338,7 +339,6 @@ function clockPage(){
           ${menuButton('5분씩 연습','step5','secondary small')}
           ${menuButton('1분까지 연습','step1','secondary small')}
           ${menuButton('새로운 목표 받기','newClockTask','pink small')}
-          ${menuButton('두 시계 비교 놀이','twoClocks','pink small')}
           ${menuButton('학습 메뉴','menu','secondary small')}
         </div>
         <div id="clockFeedback" aria-live="polite"></div>
